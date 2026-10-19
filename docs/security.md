@@ -37,10 +37,16 @@ protection from a compromised server process is claimed.
   forwarding credentials to a different host. TLS verification stays enabled.
 - Requests have connect/read timeouts and a 5 MB decompressed-response cap. Error
   messages omit raw provider bodies, URLs, API keys and request exception text.
+  Error-body inspection is capped at 64 KiB and retains only allowlisted constant
+  codes; arbitrary provider messages, failed generations and unknown codes are
+  discarded. HTTP status remains available for troubleshooting.
 - Atomic persistent budgets cap Alpha Vantage at 5/minute and 25/day, LLM at
   3/minute and 50/day across the instance. Budgets are deliberately conservative;
   actual account restrictions may be stricter. Provider 429/entitlement errors are
-  handled without automatic retry loops or silent extra paid calls.
+  handled without general automatic retries. One explicitly disclosed, budgeted Groq
+  recovery is allowed only for known HTTP 400 JSON-generation codes; recovered
+  output must pass the same citation validation. Authentication, access, model,
+  rate-limit, timeout and server failures are not automatically retried.
 - Provider history must contain matching symbol metadata and positive finite
   adjusted prices. History is aligned on the intersection of dates without fills.
   Cache freshness, stale fallback, synthetic substitution and provenance are visible.

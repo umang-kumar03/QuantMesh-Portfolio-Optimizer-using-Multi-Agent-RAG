@@ -123,3 +123,43 @@ resets request and login budgets; do not do so while serving users. Cache rows
 are bounded to 64 symbols, with six-hour freshness and at most seven-day stale
 fallback. Full price adjustment history is refreshed after TTL to incorporate
 splits/dividends. Check provider licensing before sharing or redistributing data.
+
+## Verify Groq explanations locally
+
+1. Pull the fix branch and activate your existing Python environment. No new
+   dependency or database migration is required. Run `pytest tests/test_groq.py -q`
+   for credential-free regression coverage.
+2. Keep your key in the secure environment already configured. In the terminal
+   that starts Streamlit, set the non-secret configuration (PowerShell):
+
+   ```powershell
+   $env:QUANTMESH_LLM_PROVIDER = "groq"
+   $env:QUANTMESH_LLM_MODEL = "llama-3.3-70b-versatile"
+   python -m streamlit run app.py
+   ```
+
+   Restart an existing Streamlit process so it inherits changed environment values.
+   Do not print your key, headers, `.env` contents or request body. `.env` is not
+   loaded automatically by the application. A successful models-list request in
+   a different process does not prove the dashboard inherited the same configuration.
+3. Use sample data, enter `risk volatility`, enable the disclosure checkbox, and
+   click **Generate AI explanation**. Success shows verified excerpts separately
+   from generated interpretations. Groq JSON-mode recovery is disclosed if used.
+4. If it fails, the UI now reports sanitized HTTP status and, when known, a fixed
+   error code. These are safe to share; never share raw provider messages or
+   `failed_generation` content. HTTP 400 identifies rejected parameters/context/JSON
+   generation; 401 is authentication; 403 is chat permissions; 404 is an unavailable
+   endpoint/model; 429 is quota/rate limiting; 5xx is a service failure. Model-list
+   access alone does not establish permission to create chat completions.
+
+The Groq endpoint is `/openai/v1/chat/completions`, with JSON object mode and
+`max_completion_tokens=2048`. The deprecated `max_tokens` field is no longer sent
+to Groq. Known `json_validate_failed`/`json_generation_failed` HTTP 400 responses
+get at most one plain-JSON-instructions recovery attempt. No other failures cause
+a paid retry, model substitution, or credential change. Strict citation validation
+remains mandatory. OpenAI keeps its existing request parameter behavior.
+
+Contract reference inspected: [Groq official SDK completion parameters](https://github.com/groq/groq-python/blob/main/src/groq/types/chat/completion_create_params.py).
+The original generic message omitted the actual HTTP status/error code. This
+workspace has no live Groq credential, so the user's exact remote rejection cannot
+be established from that message alone; mocked failures verify the repair paths.

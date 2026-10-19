@@ -36,3 +36,16 @@ The Python audit is recorded in `dependency-audit.json`; it is time-dependent an
 does not cover OS packages or prove absence of security defects. No paid API call,
 remote CI run, successful push or PR creation is inferred from local test success.
 GitHub publication outcomes are reported explicitly after the actual attempts.
+
+## Groq integration fix
+
+The generic HTTP error discarded the status and structured code, so it could not
+diagnose the reported chat rejection. The endpoint and JSON-object mode were
+confirmed against the official Groq SDK contract; deprecated max_tokens was
+replaced with Groq's max_completion_tokens. Known JSON-generation failures have
+a single budgeted recovery, with unchanged grounding validation. Live behavior
+is unverified because this workspace has no Groq credential. No real key is used
+by automated tests. Follow-up validation: **74 tests passed**, Ruff passed, pip check
+reported no broken requirements, and git diff --check passed. Regression coverage
+includes all requested HTTP statuses, sensitive-body redaction, Groq payloads,
+bounded recovery, truncation, timeouts and Streamlit error/recovery presentation.

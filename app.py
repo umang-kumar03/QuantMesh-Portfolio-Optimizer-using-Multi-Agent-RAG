@@ -144,7 +144,8 @@ with evidence:
     st.divider()
     st.markdown("**Optional AI explanation**")
     st.caption("Explicit opt-in: sends your question, computed summary metrics and retrieved "
-               "methodology to the configured provider. No raw prices, tickers or saved journal "
+               "methodology to the configured provider. Groq JSON-mode rejection may trigger one "
+               "additional budgeted request. No raw prices, tickers or saved journal "
                "are sent automatically. Do not include confidential information in the question.")
     consent = st.checkbox("I agree to send this question and summary to the configured AI provider")
     if st.button("Generate AI explanation", disabled=not consent):
@@ -158,6 +159,9 @@ with evidence:
                 st.info(generated["message"])
             else:
                 st.warning(generated["warning"])
+                if generated.get("json_mode_recovery"):
+                    st.info("Groq JSON mode rejected its first generation. A single recovery "
+                            "request succeeded and passed the same citation checks.")
                 for claim in generated["claims"]:
                     ref = generated["sources"][claim["source_id"]]
                     st.text(f"[{claim['source_id']}] {ref['title']}")

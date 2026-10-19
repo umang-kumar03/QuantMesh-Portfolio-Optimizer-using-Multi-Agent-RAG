@@ -67,7 +67,11 @@ because an optimization setting changes.
 Atomic SQLite reservations enforce rolling minute/day budgets across sessions and
 restarts: market 5/25, LLM 3/50, global login 30/1000 and per-username login 5/100.
 Failures count. Calls use connect/read timeouts, a 5 MB decompressed response limit,
-no redirects and no automatic retry loops that would consume extra paid requests.
+no redirects and no general automatic retry loops. LLM requests have a 60-second read
+timeout (market requests retain 20 seconds). Groq uses max_completion_tokens; only
+a known HTTP 400 JSON-generation error gets one recovery request without JSON mode.
+Both attempts count against the budget, and recovered output must pass all existing
+citation/schema checks. No retry changes models or credentials.
 
 ## Quantitative model (preserved)
 

@@ -50,6 +50,8 @@ credentials; `.env.example` documents names only. The app does not load `.env`
 automatically. Provider requests need allowed outbound HTTPS destinations and
 account/model permissions. No API key is required for sample/CSV deterministic research.
 
+Groq troubleshooting and local verification: [deployment guide](docs/deployment.md#verify-groq-explanations-locally).
+
 ## Checks
 
 ```sh

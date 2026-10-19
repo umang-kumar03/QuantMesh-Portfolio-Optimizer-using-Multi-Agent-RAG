@@ -1,0 +1,29 @@
+services:
+  quantmesh:
+    image: quantmesh:local
+    build: .
+    ports:
+      - '127.0.0.1:8501:8501'
+    environment:
+      QUANTMESH_AUTH_MODE: multi-user
+      QUANTMESH_USERS_FILE: /run/quantmesh/users.json
+      QUANTMESH_SESSION_SECRET: ${QUANTMESH_SESSION_SECRET:?Set a raw random session secret}
+      QUANTMESH_DB: /data/research.sqlite3
+      QUANTMESH_CACHE_DB: /data/market.sqlite3
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
+      QUANTMESH_LLM_PROVIDER: ${QUANTMESH_LLM_PROVIDER:-openai}
+      QUANTMESH_LLM_MODEL: ${QUANTMESH_LLM_MODEL:-}
+      QUANTMESH_LLM_API_KEY: ${QUANTMESH_LLM_API_KEY:-}
+    volumes:
+      - research:/data
+      - type: bind
+        source: ${QUANTMESH_USERS_FILE_HOST:?Set the absolute private users JSON path}
+        target: /run/quantmesh/users.json
+        read_only: true
+        bind:
+          create_host_path: false
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  research:

@@ -80,3 +80,22 @@ The dependency audit covers pinned Python packages, not base-image OS packages.
 See `docs/validation.md` for actual checks and `dependency-audit.json` for the scan.
 Repeat audits and container scanning before release. Never paste credentials into
 chat, issues, commits or pull-request comments.
+
+## Yahoo Finance boundary
+
+No Yahoo API keys, personal login sessions, arbitrary URLs or new authentication
+paths are introduced. Safe ticker/date inputs are passed only to yfinance's fixed
+daily-download API. Explicit adjusted-price extraction rejects Close-only data,
+missing assets, incomplete observations and conflicting duplicate dates. Cached
+frames are revalidated and bounded in a separate table. Raw uploads are never cached.
+
+The yfinance/curl transport is distinct from the direct requests-based API helper:
+its cookie negotiation and HTTP behavior are owned by the pinned library. TLS
+verification is not disabled. Per-call yfinance logs are suppressed only for the
+calling thread, with rate-limit classification retained; no raw exceptions, cookie
+values or responses are returned to the UI. Library-generated Yahoo cookie/timezone
+files live beside the configured cache, outside Git and container build contexts.
+The five-per-minute/25-per-day budget counts logical downloads, not each internal
+HTTP request. Yahoo availability, personal-use/redistribution terms and revision
+bias require operator review. Existing user isolation and LLM disclosure rules
+remain in effect, and no public deployment is authorized.

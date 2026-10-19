@@ -1,0 +1,118 @@
+# Architecture
+
+QuantMesh extends the original portfolio research application without replacing
+its analytics engine. Python 3.11/3.12, Streamlit, Plotly, pandas/NumPy, SciPy and
+SQLite keep the entire research workflow testable without a separate SPA/API tier.
+One private instance supports local single-user operation or provisioned small-group
+accounts. Public trading, enterprise identity and horizontal scaling are out of scope.
+
+```mermaid
+flowchart LR
+  U[User] --> A[Authentication gate]
+  A --> S[Synthetic sample / CSV]
+  A --> P[Alpha Vantage adapter]
+  P <--> C[(History cache and request budgets)]
+  S --> V[Strict daily-price validation]
+  P --> V
+  V --> T[Chronological split]
+  T --> O[Training-only optimization]
+  O --> B[Holdout / risk analytics]
+  B --> D[Interactive dashboard / exports]
+  D --> J[(Owner-scoped journal)]
+  B --> R[Deterministic specialist agents]
+  K[Local methodology corpus] --> R
+  R --> L[Optional consented LLM explanation]
+  B --> L
+  L --> Q[Schema / exact-quote / citation validation]
+  Q --> D
+```
+
+## Modules and interfaces
+
+- `data.py`: strict CSV boundary and seeded synthetic data.
+- `analytics.py`: existing constrained optimization, holdout and metrics functions.
+- `market.py`: Alpha Vantage adjusted history, persistent cache and atomic budgets.
+- `http.py`: bounded HTTPS transport, fixed timeouts, disabled redirects, safe errors.
+- `agents.py`: allocation/risk/validation reports and local lexical retrieval.
+- `llm.py`: fixed OpenAI/Groq endpoints, structured generation and citation validation.
+- `auth.py`: scrypt verification, signed expiring sessions and the UI access gate.
+- `manage_users.py`: operator provisioning, secure prompts and atomic credential-file writes.
+- `storage.py`: transactional schema migration and owner-filtered SQLite journal.
+- `reports.py`: strict JSON reports and spreadsheet-safe CSV exports.
+- `app.py`: UI orchestration, explicit provider actions, consent, charts and reports.
+
+Streamlit owns HTTP/WebSockets and server-side session state. Analytical functions
+are the internal Python API; there is no separate public REST endpoint. UI settings
+remain in the current session. The generated explanation has no tools or write path
+into analytics, portfolio allocations or journal contents.
+
+## Data and request flow
+
+Alpha Vantage uses `TIME_SERIES_DAILY_ADJUSTED`, `outputsize=full` and the configured
+key. Provider access/plan entitlement is required. Fixed endpoint and symbol validation
+prevent arbitrary URL requests. Histories must contain matching symbol metadata
+and finite positive adjusted prices. Intersect dates without forward filling;
+then slice the requested range and apply the existing dataset validator.
+
+`market_cache(symbol, fetched, payload)` and
+`request_budget(service, requested)` live in QUANTMESH_CACHE_DB. Cache freshness
+is six hours; failed refreshes may reuse data for at most seven days. Freshness
+and last-observation timestamps are separate provenance fields. Refresh replaces
+full adjustment history to incorporate revised corporate actions. Cache is bounded
+to 64 symbols and shared only for licensed provider data. Uploaded datasets never
+enter it. If enabled, whole-portfolio sample substitution is labeled in the UI and
+report; no synthetic and real series are mixed. No provider fetch occurs merely
+because an optimization setting changes.
+
+Atomic SQLite reservations enforce rolling minute/day budgets across sessions and
+restarts: market 5/25, LLM 3/50, global login 30/1000 and per-username login 5/100.
+Failures count. Calls use connect/read timeouts, a 5 MB decompressed response limit,
+no redirects and no automatic retry loops that would consume extra paid requests.
+
+## Quantitative model (preserved)
+
+Daily simple returns from positive adjusted closes. Annualization assumes 252
+observations/year. The chronological training segment estimates arithmetic means
+and sample covariance; covariance is 90% sample plus 10% diagonal and a small ridge.
+SLSQP solves long-only, fully invested weights subject to an asset cap. Maximum
+Sharpe is a local numerical solution, not a promised global optimum.
+
+Fit through the training close. Test returns begin after that close. Buy-and-hold
+equity is the weighted sum of cumulative asset returns; weights drift naturally.
+The optimized and equal-weight portfolios each pay the chosen initial notional
+cost once. Initial pre-cost capital is included in equity and drawdown. Sharpe is
+annual arithmetic excess return divided by sample annual volatility; zero-volatility
+Sharpe is undefined. Historical daily VaR is the signed 5th-percentile return.
+CAGR compounds test returns over n/252 years. No leverage, hidden rebalances,
+taxes, liquidity model or execution infrastructure.
+
+## Generated research boundary
+
+Local methodology passages are retrieved using token overlap and inverse document
+frequency. LLM sources consist only of those retrieved passages plus F1 (computed
+holdout metrics) and F2 (split dates). These labels are internal evidence, not
+fabricated external financial publications. No financial-news discovery is claimed.
+
+Explicit consent sends the question, selected passages and computed summary facts.
+No raw prices, ticker names or stored journal records are included automatically.
+A model returns claim objects with an exact quote, known source ID and free-text
+interpretation. The validator rejects unknown IDs, nonmatching excerpts, URLs,
+malformed schemas and excessive output. The server creates source labels; generated
+text is rendered as plain text and labeled unverified. This validates citation
+identity/quotes, not semantic truth of every interpretation.
+
+## Accounts and storage
+
+Multi-user mode authenticates before creating research UI or reading records.
+Provisioned account JSON resides outside the checkout with restricted permissions.
+Passwords use salted scrypt. HMAC sessions have a one-hour lifetime and are bound
+to the current password record. Removing an account, replacing a hash or rotating
+the signing key revokes access on the next rerun. Sign-out clears session uploads,
+market results and credentials. Single-user mode uses the reserved `local` owner.
+
+The journal schema is `runs(id,created,name,payload,owner)`, indexed on `(owner,id)`.
+Migration adds owner transactionally and leaves legacy records as `local`; named
+accounts cannot use that reserved identity. Every named-user read/write supplies
+the authenticated owner through parameterized SQL. Raw uploads are not persisted.
+SQLite is appropriate for one instance and small private groups; a future multi-replica
+service requires PostgreSQL, enterprise identity, migrations and stronger operations.

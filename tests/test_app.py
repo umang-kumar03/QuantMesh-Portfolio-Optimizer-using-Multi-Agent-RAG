@@ -26,7 +26,7 @@ def test_live_history_without_key_displays_sample_fallback(tmp_path, monkeypatch
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "market.db"))
     monkeypatch.setenv("QUANTMESH_DB", str(tmp_path / "research.db"))
     app = AppTest.from_file("app.py", default_timeout=30).run()
-    app.sidebar.radio[0].set_value("Live market history").run()
+    app.sidebar.radio[0].set_value("Alpha Vantage").run()
     assert not app.exception
     load = next(button for button in app.button if button.label == "Load market history")
     load.click().run()

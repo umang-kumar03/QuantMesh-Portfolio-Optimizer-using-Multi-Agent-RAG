@@ -120,3 +120,16 @@ accounts cannot use that reserved identity. Every named-user read/write supplies
 the authenticated owner through parameterized SQL. Raw uploads are not persisted.
 SQLite is appropriate for one instance and small private groups; a future multi-replica
 service requires PostgreSQL, enterprise identity, migrations and stronger operations.
+
+## Yahoo Finance adapter
+
+`yahoo.py` adds a separate input adapter; existing analytics, auth, journal ownership
+and Groq generation remain unchanged. `YahooClient` returns the same MarketResult
+contract as Alpha Vantage. It selects explicit Adj Close from supported flat or
+MultiIndex download shapes and records cleaning/provenance before existing validation.
+No Close substitution or missing-price imputation is permitted. Yahoo's six-hour,
+64-entry request cache uses a separate yahoo_history table and a yahoo-download
+budget. Counts limit logical downloads, not yfinance's internal HTTP/cookie requests.
+The sidebar stores results per provider to avoid source mislabeling. Reports retain
+Yahoo provenance or explicit synthetic fallback metadata. Network access, revisions
+and licensing limitations are detailed in data-sources.md.

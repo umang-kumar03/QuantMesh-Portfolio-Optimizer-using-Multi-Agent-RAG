@@ -49,3 +49,19 @@ by automated tests. Follow-up validation: **74 tests passed**, Ruff passed, pip 
 reported no broken requirements, and git diff --check passed. Regression coverage
 includes all requested HTTP statuses, sensitive-body redaction, Groq payloads,
 bounded recovery, truncation, timeouts and Streamlit error/recovery presentation.
+
+## Yahoo Finance follow-up
+
+- Full suite: **103 passed** (29 new Yahoo adapter/integration/UI cases), without
+  internet or credentials for automated tests.
+- Ruff passed; pip check reported no broken requirements; constraints now include
+  yfinance 1.7.0 and all its additional transitive runtime dependencies.
+- Pinned dependency audit: 54 packages, no known advisories reported (see JSON artifact).
+- Controlled downloads cover flat and both MultiIndex orders, explicit adjusted-price
+  extraction, missing/empty/unadjusted/nonfinite data, invalid/duplicate dates,
+  input errors, network/rate failures, fresh/expired cache, explicit sample fallback,
+  provider session separation, both optimizers, existing agents and consented Groq output.
+- Actual Yahoo fetch with fallback disabled returned no history. Connectivity probes
+  to query1/query2.finance.yahoo.com, fc.yahoo.com and guce.yahoo.com were denied
+  by proxy HTTP 403. **Live Yahoo prices remain unverified in this environment.**
+- Existing authentication and journal-isolation code were not changed. No public deployment.

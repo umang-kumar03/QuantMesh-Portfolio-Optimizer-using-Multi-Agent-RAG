@@ -163,3 +163,22 @@ Contract reference inspected: [Groq official SDK completion parameters](https://
 The original generic message omitted the actual HTTP status/error code. This
 workspace has no live Groq credential, so the user's exact remote rejection cannot
 be established from that message alone; mocked failures verify the repair paths.
+
+## Yahoo Finance source
+
+The standard constrained install includes yfinance and its pinned dependencies.
+Existing environments should rerun `python -m pip install -c constraints.txt -e '.[dev]'`
+and restart Streamlit. No Yahoo API key or auth/session change is needed.
+Choose Yahoo Finance in the sidebar, then submit tickers and dates. Alpha Vantage
+remains a separate option; its existing key/plan requirements are unchanged.
+
+Allow Yahoo query/cookie HTTPS hosts only as needed: query1.finance.yahoo.com,
+query2.finance.yahoo.com, fc.yahoo.com, guce.yahoo.com and consent.yahoo.com. Keep
+TLS verification enabled. The configured QUANTMESH_CACHE_DB directory must be writable;
+yfinance cookie/timezone caches live under its adjacent yfinance/ subdirectory.
+Compose already places this under /data and needs no new secrets or ports.
+
+See [data-source methodology and terms](data-sources.md). Yahoo access is unofficial
+and may be throttled or unavailable. Cloud live verification was blocked by HTTP
+403 proxy policy; successful mocked tests do not prove live data availability.
+No public deployment is performed by this change.

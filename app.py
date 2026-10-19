@@ -14,6 +14,7 @@ from quantmesh.storage import list_runs, save_run
 from quantmesh.reports import build_report, safe_csv
 from quantmesh.auth import require_user
 from quantmesh.market import MarketClient
+from quantmesh.yahoo import YahooClient
 from quantmesh.llm import LLMConfig, explain
 from quantmesh.http import ServiceError
 
@@ -32,12 +33,13 @@ provenance = {}
 
 with st.sidebar:
     st.header("Portfolio lab")
-    source = st.radio("Data source", ["Sample market", "Upload CSV", "Live market history"])
+    source = st.radio("Data source", ["Sample market", "Upload CSV", "Alpha Vantage", "Yahoo Finance"])
     uploaded = st.file_uploader("Daily adjusted closing prices", type=["csv"]) if source == "Upload CSV" else None
-    if source == "Live market history":
-        st.caption("Alpha Vantage · End-of-day adjusted history, not real-time quotes. "
-                   "Adjusted daily history requires provider plan entitlement.")
-        with st.form("market-request"):
+    if source in {"Alpha Vantage", "Yahoo Finance"}:
+        st.caption("Historical end-of-day adjusted prices, not real-time quotes.")
+        st.caption("Alpha Vantage adjusted history needs plan entitlement." if source == "Alpha Vantage"
+                   else "Yahoo Finance via yfinance · Unofficial access; no API key required.")
+        with st.form("market-request-" + source):
             symbols_text = st.text_input("Symbols (2–5, comma-separated)", "SPY,QQQ,GLD")
             start = st.date_input("History start", date(2021, 1, 4))
             end = st.date_input("History end", date.today())
@@ -46,11 +48,12 @@ with st.sidebar:
         if fetch_market:
             try:
                 with st.spinner("Loading validated market history…"):
-                    client = MarketClient(cache_path, os.environ.get("ALPHAVANTAGE_API_KEY", ""))
+                    client = (YahooClient(cache_path) if source == "Yahoo Finance" else
+                              MarketClient(cache_path, os.environ.get("ALPHAVANTAGE_API_KEY", "")))
                     loaded = client.load(symbols_text.split(","), start, end, fallback=allow_fallback)
-                    st.session_state["market_result"] = loaded
+                    st.session_state["market_result_" + source] = loaded
             except (ValueError, OSError, sqlite3.Error) as exc:
-                st.session_state.pop("market_result", None)
+                st.session_state.pop("market_result_" + source, None)
                 st.error(str(exc) if isinstance(exc, ValueError) else "Market storage is unavailable.")
     st.caption("CSV: Date, then 2–30 assets. 61–10,000 rows; ascending, unique dates; no gaps in values.")
     objective = st.selectbox("Optimization", ["Minimum variance", "Maximum Sharpe"])
@@ -63,16 +66,18 @@ with st.sidebar:
     st.caption("Research tool · No trade execution · Not investment advice")
 
 try:
-    if source == "Live market history":
-        loaded = st.session_state.get("market_result")
+    if source in {"Alpha Vantage", "Yahoo Finance"}:
+        loaded = st.session_state.get("market_result_" + source)
         if loaded is None:
             st.info("Submit Load market history to fetch prices or use the sample fallback.")
             st.stop()
         prices, provenance = loaded.prices, loaded.provenance
         if loaded.warning:
             st.warning(loaded.warning)
-        st.info("SYNTHETIC SAMPLE DATA" if provenance["synthetic"] else
-                "Alpha Vantage adjusted daily history · Check data timestamps below.")
+        if provenance["synthetic"]:
+            st.info("SYNTHETIC SAMPLE DATA")
+        else:
+            st.success(source + " adjusted historical prices loaded. Check provenance and timestamps.")
         with st.expander("Market data provenance"):
             st.json(provenance)
     elif source == "Upload CSV":

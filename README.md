@@ -2,7 +2,7 @@
 
 **Portfolio research with transparent analytics, optional market history and grounded AI explanations.**
 
-The existing portfolio dashboard now supports cached Alpha Vantage adjusted daily
+The existing portfolio dashboard now supports cached Alpha Vantage and Yahoo Finance adjusted daily
 history, optional OpenAI/Groq research explanations, and private multi-user accounts.
 It still runs immediately with deterministic synthetic data and no service keys.
 
@@ -21,7 +21,9 @@ See [deployment instructions](docs/deployment.md) before starting Compose.
 
 ## Features
 
-- Sample, strict CSV import, or Alpha Vantage end-of-day adjusted history.
+- Four separate sources: Sample market, Upload CSV, Alpha Vantage and Yahoo Finance.
+- Yahoo Finance via pinned yfinance needs no API key; explicitly adjusted prices,
+  strict missing-data validation, cached histories and clearly labeled fallback.
 - Persistent historical cache, request budgets, freshness/provenance, bounded stale
   reuse, and clearly labeled sample fallback on service failure.
 - Minimum-variance / maximum-Sharpe optimization with weight caps and training-only estimates.
@@ -67,7 +69,7 @@ claimed when credentials or network access are unavailable.
 ## Documentation
 
 [Architecture](docs/architecture.md) · [Requirements](docs/requirements.md) ·
-[Research and attribution](docs/research.md) · [Roadmap](docs/roadmap.md) ·
+[Historical data sources](docs/data-sources.md) · [Research and attribution](docs/research.md) · [Roadmap](docs/roadmap.md) ·
 [Deployment](docs/deployment.md) · [Security](docs/security.md)
 
 No trade execution or public deployment. Historical results do not predict future

@@ -99,3 +99,24 @@ The five-per-minute/25-per-day budget counts logical downloads, not each interna
 HTTP request. Yahoo availability, personal-use/redistribution terms and revision
 bias require operator review. Existing user isolation and LLM disclosure rules
 remain in effect, and no public deployment is authorized.
+
+## Production deployment hardening
+
+Read auth-audit.md for findings and production-deployment.md for operational gates.
+Direct images and the hosted service now start through a fail-closed launcher that
+requires multi-user auth, private provisioned accounts, raw session signing and
+validated disk paths before binding a port. The UI separately rejects production
+single-user mode. No plaintext credentials are put in DBs. Alpha caching retains
+only validated prices and required identity, not arbitrary provider metadata.
+
+Multi-user downloads use escaped, base64 browser-local links inside the authenticated
+WebSocket UI instead of Streamlit media capability URLs. No download data enters a
+public server media route. This preserves exports but cannot prevent authorized
+users retaining files; browser compatibility must be checked before hosting.
+WAL/full-sync, lock waits, version checks, atomic account updates and verified
+backup/restore improve persistence; they do not establish actual hosting durability
+or automatic offsite backups. Streamlit expiry/revocation applies on reruns, not
+instant erasure of a static browser view. A fresh server session requires re-login.
+Render HTTPS, Blueprint control-plane acceptance and live storage must still be
+verified after approval; no claim of a tested public deployment or complete
+production security certification is made.

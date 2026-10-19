@@ -26,7 +26,8 @@ def password_record(password: str) -> dict:
 
 def load_users(path: str) -> dict:
     try:
-        raw = Path(path).read_bytes()
+        with Path(path).open("rb") as account_file:
+            raw = account_file.read(1024 * 1024 + 1)
         if len(raw) > 1024 * 1024:
             raise ValueError
         users = json.loads(raw)
@@ -34,6 +35,10 @@ def load_users(path: str) -> dict:
             raise ValueError
         for name, record in users.items():
             if not USERNAME.fullmatch(name) or name == "local":
+                raise ValueError
+            if not isinstance(record, dict) or set(record) - {"salt", "hash", "session_version"}:
+                raise ValueError
+            if "session_version" in record and not re.fullmatch(r"[a-f0-9]{32}", record["session_version"]):
                 raise ValueError
             if len(bytes.fromhex(record["salt"])) != 16 or len(bytes.fromhex(record["hash"])) != 64:
                 raise ValueError
@@ -97,6 +102,10 @@ def verify_session(token: str, users: dict, key: bytes, now: float | None = None
 def require_user(st) -> str:
     """Run before any upload, provider, report or storage UI is created."""
     mode = os.environ.get("QUANTMESH_AUTH_MODE", "single-user")
+    deployment = os.environ.get("QUANTMESH_DEPLOYMENT", "local")
+    if deployment not in {"local", "production"} or (deployment == "production" and mode != "multi-user"):
+        st.error("Production deployment requires multi-user authentication. Access denied.")
+        st.stop()
     if mode == "single-user":
         st.sidebar.caption("Private single-user mode · Do not expose this mode publicly.")
         return "local"

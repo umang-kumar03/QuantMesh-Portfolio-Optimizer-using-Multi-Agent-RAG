@@ -1,24 +1,26 @@
 """Owner-scoped SQLite journal; legacy records remain assigned to local only."""
 import json
-import sqlite3
 from datetime import datetime, timezone
 from contextlib import contextmanager
-from pathlib import Path
+from quantmesh.sqlite_utils import open_database
 
 
 @contextmanager
 def connect(path: str):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=10)
+    conn = open_database(path)
     try:
         with conn:
             conn.execute("BEGIN IMMEDIATE")
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if version > 1:
+                raise ValueError("Journal schema is newer than this application. Restore a compatible release.")
             conn.execute("CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY, "
                          "created TEXT NOT NULL, name TEXT NOT NULL, payload TEXT NOT NULL)")
             columns = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
             if "owner" not in columns:
                 conn.execute("ALTER TABLE runs ADD COLUMN owner TEXT NOT NULL DEFAULT 'local'")
             conn.execute("CREATE INDEX IF NOT EXISTS runs_owner_id ON runs(owner,id)")
+            conn.execute("PRAGMA user_version=1")
             yield conn
     finally:
         conn.close()

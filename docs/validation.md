@@ -65,3 +65,23 @@ bounded recovery, truncation, timeouts and Streamlit error/recovery presentation
   to query1/query2.finance.yahoo.com, fc.yahoo.com and guce.yahoo.com were denied
   by proxy HTTP 403. **Live Yahoo prices remain unverified in this environment.**
 - Existing authentication and journal-isolation code were not changed. No public deployment.
+
+## Private production deployment follow-up
+
+- Full suite: **122 tests passed** including production guard, bootstrap persistence,
+  private browser-local exports, salted hashing, explicit account revocation/removal,
+  concurrent provisioning/journal writes, WAL/schema versioning, restart login gating,
+  owner isolation, online backup and corruption/non-overwrite restore checks.
+- Ruff passed; pip check passed; 54 pinned dependencies audited with no known advisories.
+- Production image rebuilt successfully. Direct image startup without signing credentials
+  refused to serve. A non-root UID 10001 integration check validated actual launcher/
+  health, authenticated UI, isolated records, private exports and server restarts.
+  The check passed again in a newly created container attached to the same local
+  Docker volume, preserving accounts and research; the temporary volume was removed.
+- Render YAML parsed and local single-instance/disk/startup assertions passed. Compose
+  configuration syntax passed with temporary fixture settings. Neither is a Render
+  control-plane validation or a live HTTPS deployment test.
+- Render docs HTTPS access was blocked in this environment; current provider controls,
+  pricing/availability, Blueprint acceptance, live TLS/disk tests, browser download
+  compatibility and offsite backup transfer remain manual deployment prerequisites.
+- No hosting service, paid disk, public URL or public deployment was created.

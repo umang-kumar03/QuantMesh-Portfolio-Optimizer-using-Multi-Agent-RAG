@@ -17,7 +17,11 @@ streamlit run app.py --server.address=127.0.0.1
 
 Default mode is private single-user. Do not expose that mode publicly. Prepared
 Docker Compose configuration requires provisioned multi-user authentication.
-See [deployment instructions](docs/deployment.md) before starting Compose.
+See [production deployment](docs/production-deployment.md) and the
+[auth audit](docs/auth-audit.md) before sharing an instance. Render configuration
+is provided for one paid instance with a persistent disk; no resources are created.
+Production startup is `python -m quantmesh.serve`, never public single-user mode.
+The prepared Groq deployment model is `openai/gpt-oss-20b`.
 
 ## Features
 

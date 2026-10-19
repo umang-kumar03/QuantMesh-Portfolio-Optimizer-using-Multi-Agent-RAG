@@ -133,3 +133,15 @@ budget. Counts limit logical downloads, not yfinance's internal HTTP/cookie requ
 The sidebar stores results per provider to avoid source mislabeling. Reports retain
 Yahoo provenance or explicit synthetic fallback metadata. Network access, revisions
 and licensing limitations are detailed in data-sources.md.
+
+## Production boundary
+
+`serve.py` validates multi-user startup, mounted-directory configuration, protected
+accounts and schemas before exec'ing Streamlit on the platform PORT. Render's native
+Python service and persistent disk are the reference topology; Docker uses the same
+launcher. `account_store.py` serializes operator updates and fsyncs atomic replacement.
+Accounts are seeded once, then persist independently of app releases. `sqlite_utils.py`
+sets WAL/full-sync/lock policy; journal schema version 1 rejects newer versions.
+`backup.py` uses online SQLite snapshots and checksum/integrity-verified offline
+restore into a new directory. Multi-user exports are browser-local via exports.py,
+not public Streamlit media URLs. See production-deployment.md for topology limits.

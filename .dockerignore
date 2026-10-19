@@ -13,3 +13,5 @@ dist
 private
 .secrets
 **/users.json
+backups/
+quantmesh-users.json

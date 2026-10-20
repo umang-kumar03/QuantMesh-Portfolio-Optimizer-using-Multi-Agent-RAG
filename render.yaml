@@ -20,6 +20,8 @@ services:
         value: production
       - key: QUANTMESH_AUTH_MODE
         value: multi-user
+      - key: QUANTMESH_STORAGE_MODE
+        value: persistent-local
       - key: QUANTMESH_DATA_DIR
         value: /var/data
       - key: QUANTMESH_DB

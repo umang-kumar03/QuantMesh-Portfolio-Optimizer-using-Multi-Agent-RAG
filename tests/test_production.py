@@ -21,6 +21,7 @@ def production(tmp_path, monkeypatch):
     root.mkdir()
     seed = tmp_path / "seed.json"
     seed.write_text(json.dumps({"alice": password_record("test-long-password-alice")}))
+    monkeypatch.setenv("QUANTMESH_STORAGE_MODE", "persistent-local")
     monkeypatch.setenv("QUANTMESH_DATA_DIR", str(root))
     monkeypatch.setenv("QUANTMESH_DEPLOYMENT", "production")
     monkeypatch.setenv("QUANTMESH_AUTH_MODE", "multi-user")
@@ -227,3 +228,68 @@ def test_sqlite_files_are_private_on_unix(production):
     if os.name != "nt":
         assert (root / "research.sqlite3").stat().st_mode & 0o077 == 0
         assert (root / "market.sqlite3").stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.parametrize("mode", [None, "", "ephemeral", "postgres", "persistent"])
+def test_production_requires_explicit_supported_storage_before_creating_accounts(
+        production, monkeypatch, mode):
+    root, _ = production
+    if mode is None:
+        monkeypatch.delenv("QUANTMESH_STORAGE_MODE")
+    else:
+        monkeypatch.setenv("QUANTMESH_STORAGE_MODE", mode)
+    with pytest.raises(ServiceError, match="persistent-local"):
+        preflight()
+    assert not (root / "users.json").exists()
+    assert not (root / "research.sqlite3").exists()
+    assert not (root / "market.sqlite3").exists()
+
+
+def test_restart_preserves_login_limits_revocation_and_owner_isolation(production):
+    """A new interpreter must use durable state, not an in-process cached identity."""
+    import subprocess
+    import sys
+
+    root, _ = production
+    preflight()
+    file = root / "users.json"
+    update_account(file, "bob", record=password_record("test-long-password-bob"))
+    key = os.environ["QUANTMESH_SESSION_SECRET"].encode()
+    users = load_users(str(file))
+    token = login("alice", "test-long-password-alice", users, key,
+                  str(root / "market.sqlite3"), now=1000)
+    save_run(str(root / "research.sqlite3"), "Alice private", {"secret": "alice"}, owner="alice")
+    save_run(str(root / "research.sqlite3"), "Bob private", {"secret": "bob"}, owner="bob")
+    update_account(file, "alice", action="revoke")
+    # Alice has already used one of five allowed attempts in this minute.
+    for _ in range(4):
+        with pytest.raises(ServiceError, match="Invalid username or password"):
+            login("alice", "wrong-password", load_users(str(file)), key,
+                  str(root / "market.sqlite3"), now=1001)
+    result = subprocess.run([sys.executable, "-c", '''
+import json, os, sys
+from quantmesh.auth import load_users, login, verify_session
+from quantmesh.http import ServiceError
+from quantmesh.serve import preflight
+from quantmesh.storage import list_runs
+paths = preflight()
+users = load_users(str(paths["QUANTMESH_USERS_FILE"]))
+key = os.environ["QUANTMESH_SESSION_SECRET"].encode()
+assert set(users) == {"alice", "bob"}
+assert verify_session(json.loads(sys.stdin.read()), users, key, now=1002) is None
+try:
+    login("alice", "test-long-password-alice", users, key,
+          str(paths["QUANTMESH_CACHE_DB"]), now=1002)
+except ServiceError as error:
+    assert "budget reached" in str(error).lower()
+else:
+    raise AssertionError("Restart reset the login budget")
+token = login("bob", "test-long-password-bob", users, key,
+              str(paths["QUANTMESH_CACHE_DB"]), now=1002)
+owner = verify_session(token, users, key, now=1003)
+assert owner == "bob"
+runs = list_runs(str(paths["QUANTMESH_DB"]), owner=owner)
+assert len(runs) == 1 and runs[0]["name"] == "Bob private"
+assert not list_runs(str(paths["QUANTMESH_DB"]), owner="carol")
+'''], input=json.dumps(token), capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr

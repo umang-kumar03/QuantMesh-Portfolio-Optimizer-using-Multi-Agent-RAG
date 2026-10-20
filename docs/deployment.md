@@ -170,3 +170,13 @@ See [data-source methodology and terms](data-sources.md). Yahoo access is unoffi
 and may be throttled or unavailable. Cloud live verification was blocked by HTTP
 403 proxy policy; successful mocked tests do not prove live data availability.
 No public deployment is performed by this change.
+
+## Free-hosting storage boundary
+
+Production startup requires `QUANTMESH_STORAGE_MODE=persistent-local` in addition
+to multi-user authentication and durable paths. This is an operator declaration,
+not a persistence detector. Do not use it to bypass an ephemeral host limitation.
+Both account membership/revocation and login/provider budgets must persist along
+with owner-scoped research. No external SQL backend or partial migration is added.
+See [free-hosting compatibility](free-hosting.md) for verified evidence, unverified
+provider quotas, the private Compose demo path and remaining deployment gates.

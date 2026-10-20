@@ -85,3 +85,26 @@ bounded recovery, truncation, timeouts and Streamlit error/recovery presentation
   pricing/availability, Blueprint acceptance, live TLS/disk tests, browser download
   compatibility and offsite backup transfer remain manual deployment prerequisites.
 - No hosting service, paid disk, public URL or public deployment was created.
+
+
+## Free-hosting compatibility follow-up
+
+- Full suite: **128 passed** on Python 3.12.14; all existing Yahoo, Groq, RAG,
+  optimization/backtesting and authentication tests retained. New cases reject
+  missing/empty/ephemeral/unsupported storage declarations before file creation,
+  and verify login limits, revoked tokens, accounts and journal isolation in a
+  fresh interpreter. External API responses remain mocked; no real keys required.
+- Ruff, pip check and git diff --check passed. All 54 pinned dependencies audited:
+  no known vulnerabilities reported by pip-audit (not a security certification).
+- Actual production launcher returned HTTP 200 `ok` before and after a local restart
+  with fixture accounts; removal of the bootstrap file did not lose accounts.
+  Explicit ephemeral mode exited with status 1 before serving. Temporary local
+  test storage does not establish any hosting provider's disk durability.
+- Render local YAML structure and resolved Docker Compose checks passed: paid disk
+  retained, one instance, multi-user mode, explicit persistent-local declaration,
+  named data volume and localhost-only binding. No provider control-plane or TLS
+  validation, ARM build, real VM reboot or live free hosting was performed.
+- Official GitHub documentation provided Streamlit/Hugging Face hosting evidence;
+  direct provider documentation URLs returned proxy 403. Unretrieved current plan
+  quotas are explicitly unverified in free-hosting.md. No hosted resources/accounts
+  were created and no public deployment was performed.

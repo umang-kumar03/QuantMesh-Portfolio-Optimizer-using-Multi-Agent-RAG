@@ -16,6 +16,10 @@ def preflight() -> dict[str, Path]:
     if os.environ.get("QUANTMESH_AUTH_MODE") != "multi-user":
         raise ServiceError("Production startup requires QUANTMESH_AUTH_MODE=multi-user.")
     session_key()
+    if os.environ.get("QUANTMESH_STORAGE_MODE") != "persistent-local":
+        raise ServiceError("Production requires QUANTMESH_STORAGE_MODE=persistent-local on a durable "
+                           "local disk. Ephemeral storage and external database URLs are unsupported; "
+                           "see docs/free-hosting.md.")
     root = Path(os.environ.get("QUANTMESH_DATA_DIR", "")).resolve()
     if not os.environ.get("QUANTMESH_DATA_DIR") or not root.is_dir():
         raise ServiceError("QUANTMESH_DATA_DIR must be an existing mounted persistent directory.")

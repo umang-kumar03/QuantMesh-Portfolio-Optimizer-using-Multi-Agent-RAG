@@ -145,3 +145,13 @@ sets WAL/full-sync/lock policy; journal schema version 1 rejects newer versions.
 `backup.py` uses online SQLite snapshots and checksum/integrity-verified offline
 restore into a new directory. Multi-user exports are browser-local via exports.py,
 not public Streamlit media URLs. See production-deployment.md for topology limits.
+
+## Free-hosting storage boundary
+
+Production startup requires `QUANTMESH_STORAGE_MODE=persistent-local` in addition
+to multi-user authentication and durable paths. This is an operator declaration,
+not a persistence detector. Do not use it to bypass an ephemeral host limitation.
+Both account membership/revocation and login/provider budgets must persist along
+with owner-scoped research. No external SQL backend or partial migration is added.
+See [free-hosting compatibility](free-hosting.md) for verified evidence, unverified
+provider quotas, the private Compose demo path and remaining deployment gates.

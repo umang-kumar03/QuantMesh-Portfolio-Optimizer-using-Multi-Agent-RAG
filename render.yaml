@@ -1,0 +1,46 @@
+# Configuration only: applying this blueprint creates PAID resources. Review first.
+services:
+  - type: web
+    name: quantmesh
+    runtime: python
+    plan: standard
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: python -m pip install -c constraints.txt .
+    startCommand: python -m quantmesh.serve
+    healthCheckPath: /_stcore/health
+    disk:
+      name: quantmesh-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: QUANTMESH_DEPLOYMENT
+        value: production
+      - key: QUANTMESH_AUTH_MODE
+        value: multi-user
+      - key: QUANTMESH_DATA_DIR
+        value: /var/data
+      - key: QUANTMESH_DB
+        value: /var/data/research.sqlite3
+      - key: QUANTMESH_CACHE_DB
+        value: /var/data/market.sqlite3
+      - key: QUANTMESH_USERS_FILE
+        value: /var/data/users.json
+      - key: QUANTMESH_BOOTSTRAP_USERS_FILE
+        value: /etc/secrets/quantmesh-users.json
+      - key: QUANTMESH_SESSION_SECRET
+        generateValue: true
+      - key: QUANTMESH_LLM_PROVIDER
+        value: groq
+      - key: QUANTMESH_LLM_MODEL
+        value: openai/gpt-oss-20b
+      - key: QUANTMESH_LLM_API_KEY
+        sync: false
+      - key: OPENBLAS_NUM_THREADS
+        value: 1
+      - key: OMP_NUM_THREADS
+        value: 1
+      - key: MKL_NUM_THREADS
+        value: 1

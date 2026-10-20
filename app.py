@@ -12,6 +12,7 @@ from quantmesh.analytics import research
 from quantmesh.data import read_csv, sample_prices
 from quantmesh.storage import list_runs, save_run
 from quantmesh.reports import build_report, safe_csv
+from quantmesh.exports import download
 from quantmesh.auth import require_user
 from quantmesh.market import MarketClient
 from quantmesh.yahoo import YahooClient
@@ -185,10 +186,10 @@ with data:
     report = build_report(prices, result, actual_source, {**params, "initial_capital": capital})
     report["market_provenance"] = provenance
     a, b, c = st.columns(3)
-    a.download_button("Download prices CSV", safe_csv(prices), "prices.csv", "text/csv")
-    b.download_button("Download weights CSV", safe_csv(result.weights.to_frame()),
+    download(a, "Download prices CSV", safe_csv(prices), "prices.csv", "text/csv")
+    download(b, "Download weights CSV", safe_csv(result.weights.to_frame()),
                       "weights.csv", "text/csv")
-    c.download_button("Download research report", json.dumps(report, indent=2, allow_nan=False),
+    download(c, "Download research report", json.dumps(report, indent=2, allow_nan=False),
                       "quantmesh-report.json", "application/json")
     st.caption("Report includes parameters, data fingerprint, split dates, metrics, and weights. "
                "Export prices as well to reproduce an imported dataset.")
@@ -204,8 +205,9 @@ with saved:
         for run in list_runs(db, owner=owner):
             with st.expander(f"#{run['id']} · {run['name']} · {run['created'][:19]} UTC"):
                 st.json(run["payload"])
-    except (OSError, ValueError, sqlite3.Error) as exc:
-        st.error(f"Unable to save research: {exc}")
+    except (OSError, ValueError, sqlite3.Error):
+        st.error("Research journal is unavailable. Check storage permissions and retry; "
+                 "contact the operator if the problem persists.")
 st.divider()
 st.caption("Limitations: historical estimation risk, selection bias, end-of-day prices, no taxes, "
            "no liquidity model. Repeated holdout tuning introduces selection bias. "

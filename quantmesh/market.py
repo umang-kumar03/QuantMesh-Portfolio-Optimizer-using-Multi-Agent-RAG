@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
+from quantmesh.sqlite_utils import open_database
 
 import numpy as np
 import pandas as pd
@@ -20,8 +20,7 @@ DOCUMENTATION = "https://www.alphavantage.co/documentation/#dailyadj"
 
 @contextmanager
 def database(path):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=10)
+    conn = open_database(path)
     try:
         with conn:
             conn.execute("CREATE TABLE IF NOT EXISTS market_cache "
@@ -106,9 +105,12 @@ class MarketClient:
                 "function": "TIME_SERIES_DAILY_ADJUSTED", "symbol": symbol,
                 "outputsize": "full", "apikey": self.key})
             series = parse_history(payload, symbol)
+            # Persist only validated prices and required identity, never arbitrary response metadata.
+            safe_payload = {"Meta Data": {"2. Symbol": symbol}, "Time Series (Daily)": {
+                str(day.date()): {"5. adjusted close": float(value)} for day, value in series.items()}}
             with database(self.path) as conn:
                 conn.execute("INSERT OR REPLACE INTO market_cache VALUES (?,?,?)",
-                             (symbol, now, json.dumps(payload, allow_nan=False)))
+                             (symbol, now, json.dumps(safe_payload, allow_nan=False)))
                 conn.execute("DELETE FROM market_cache WHERE symbol NOT IN "
                              "(SELECT symbol FROM market_cache ORDER BY fetched DESC LIMIT 64)")
             return series, now, "provider"

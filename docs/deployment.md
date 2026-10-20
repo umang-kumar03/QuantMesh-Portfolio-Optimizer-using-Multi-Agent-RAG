@@ -45,32 +45,19 @@ Authoritative API contracts:
 Provider documentation and entitlement may change; validate on your account.
 The cloud network blocked live provider/API checks during implementation.
 
-## Provision private multi-user access
+## Production multi-user deployment
 
-Accounts are provisioned by the operator; there is no public registration.
-Run from an activated environment. The CLI prompts securely for passwords and
-confirmation, writes salted scrypt hashes atomically, and refuses a credential
-file inside the checkout. `local` is reserved for pre-authentication legacy data.
+Use [the production runbook](production-deployment.md) for the recommended Render
+single-instance/persistent-disk configuration, account provisioning, HTTPS acceptance,
+backup/restore and rollback. Read [the auth audit](auth-audit.md) for fixed findings.
+No live hosting deployment has been verified or authorized here.
 
-```sh
-python -m quantmesh.manage_users alice --file /absolute/private/quantmesh/users.json
-python -m quantmesh.manage_users bob --file /absolute/private/quantmesh/users.json
-```
-
-Protect the directory as well as the file (CLI uses mode 0600). For Docker, the
-file must be readable by container UID 10001: set its ownership or an appropriate
-host ACL to that UID without making it world-readable. Mount it read-only;
-Compose refuses to create a missing path. Provision changes on the host, then
-restart the container to refresh a bind mount after the CLI's atomic replacement.
-
-Generate a high-entropy session secret using a password manager or a secure local
-secret-generation command, place it directly in your secret manager, and export
-it as `QUANTMESH_SESSION_SECRET`. Do not use an example string from documentation.
-Set `QUANTMESH_AUTH_MODE=multi-user` and `QUANTMESH_USERS_FILE` for non-container
-multi-user operation. Missing/malformed configuration blocks all research access.
-Sessions expire after one hour. Replacing a user's password hash, removing the
-user, or rotating the session secret revokes access on the next application run.
-Sign-out clears all current session research/upload state.
+Docker and Render use `python -m quantmesh.serve`. Required production paths live
+below QUANTMESH_DATA_DIR. The initial secret file is a first-start-only seed; durable
+accounts then live at QUANTMESH_USERS_FILE. Update the durable account file using
+manage_users; changing the bootstrap host file later does not replace membership.
+Provisioning, revocation and disable procedures are in the runbook. Session/hash
+format and existing legacy accounts remain compatible.
 
 ## Container deployment preparation
 
@@ -83,7 +70,8 @@ docker compose logs quantmesh
 ```
 
 Compose binds only loopback, requires multi-user authentication configuration,
-mounts the account file read-only, and retains journal/cache in a named volume.
+mounts an initial bootstrap file read-only, then retains accounts/journal/cache
+in the named volume. Do not remove the volume on upgrades.
 Never dump `docker compose config` or container environment: they can contain
 real secrets. TLS and authenticated access policies must be configured on your
 reverse proxy before remote use. Forward WebSockets and preserve Streamlit's

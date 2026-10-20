@@ -5,14 +5,17 @@ services:
     ports:
       - '127.0.0.1:8501:8501'
     environment:
+      QUANTMESH_DEPLOYMENT: production
+      QUANTMESH_DATA_DIR: /data
       QUANTMESH_AUTH_MODE: multi-user
-      QUANTMESH_USERS_FILE: /run/quantmesh/users.json
+      QUANTMESH_USERS_FILE: /data/users.json
+      QUANTMESH_BOOTSTRAP_USERS_FILE: /run/quantmesh/users.json
       QUANTMESH_SESSION_SECRET: ${QUANTMESH_SESSION_SECRET:?Set a raw random session secret}
       QUANTMESH_DB: /data/research.sqlite3
       QUANTMESH_CACHE_DB: /data/market.sqlite3
       ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
-      QUANTMESH_LLM_PROVIDER: ${QUANTMESH_LLM_PROVIDER:-openai}
-      QUANTMESH_LLM_MODEL: ${QUANTMESH_LLM_MODEL:-}
+      QUANTMESH_LLM_PROVIDER: ${QUANTMESH_LLM_PROVIDER:-groq}
+      QUANTMESH_LLM_MODEL: ${QUANTMESH_LLM_MODEL:-openai/gpt-oss-20b}
       QUANTMESH_LLM_API_KEY: ${QUANTMESH_LLM_API_KEY:-}
     volumes:
       - research:/data
@@ -22,6 +25,9 @@ services:
         read_only: true
         bind:
           create_host_path: false
+    mem_limit: 2g
+    cpus: 1.0
+    pids_limit: 128
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

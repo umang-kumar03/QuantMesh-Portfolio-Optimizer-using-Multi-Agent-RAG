@@ -6,6 +6,7 @@ services:
       - '127.0.0.1:8501:8501'
     environment:
       QUANTMESH_DEPLOYMENT: production
+      QUANTMESH_STORAGE_MODE: persistent-local
       QUANTMESH_DATA_DIR: /data
       QUANTMESH_AUTH_MODE: multi-user
       QUANTMESH_USERS_FILE: /data/users.json

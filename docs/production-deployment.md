@@ -5,6 +5,11 @@ services, domains or public URLs have been created. Do not launch the old local
 single-user command publicly. The production launcher fails before binding a socket
 unless multi-user accounts, session signing and durable paths are configured.
 
+See [free-hosting compatibility and private demo guide](free-hosting.md) before
+selecting a free plan. Existing manually configured services must add
+`QUANTMESH_STORAGE_MODE=persistent-local` before upgrading; this declaration cannot
+make an ephemeral disk durable. Compose and the paid Render Blueprint include it.
+
 ## Recommendation and limits
 
 Use **one Render Python web-service instance with a persistent disk**, Standard
@@ -64,6 +69,7 @@ fail until you add the file and manually redeploy. No anonymous bootstrap page e
 | Persistent mount | `/var/data`, writable by app runtime |
 | `QUANTMESH_DEPLOYMENT` | `production` |
 | `QUANTMESH_AUTH_MODE` | `multi-user` |
+| `QUANTMESH_STORAGE_MODE` | `persistent-local`; confirm the actual durable local mount first |
 | `QUANTMESH_DATA_DIR` | `/var/data` |
 | `QUANTMESH_DB` | `/var/data/research.sqlite3` |
 | `QUANTMESH_CACHE_DB` | `/var/data/market.sqlite3` |

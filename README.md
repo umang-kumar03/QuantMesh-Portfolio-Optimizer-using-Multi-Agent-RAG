@@ -21,6 +21,11 @@ See [production deployment](docs/production-deployment.md) and the
 [auth audit](docs/auth-audit.md) before sharing an instance. Render configuration
 is provided for one paid instance with a persistent disk; no resources are created.
 Production startup is `python -m quantmesh.serve`, never public single-user mode.
+See [free-hosting compatibility](docs/free-hosting.md): ephemeral free hosts cannot
+persist the existing accounts, revocations and research. Production requires explicit
+`QUANTMESH_STORAGE_MODE=persistent-local` on a genuinely durable local disk; the
+provided Compose and paid Render configurations set it. No reliable entirely free
+managed deployment has been verified.
 The prepared Groq deployment model is `openai/gpt-oss-20b`.
 
 ## Features

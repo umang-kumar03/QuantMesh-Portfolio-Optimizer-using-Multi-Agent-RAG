@@ -1,6 +1,9 @@
 """Operator-only PostgreSQL schema, consistent private exports and empty-target recovery."""
 import argparse
 import hashlib
+import getpass
+import re
+import warnings
 import json
 import os
 import sqlite3
@@ -147,20 +150,44 @@ def read_sqlite_backup(source):
     return data
 
 
+def _grant_runtime(conn, role):
+    row = conn.execute("SELECT oid,rolsuper,rolcreaterole,rolcreatedb,rolbypassrls FROM pg_roles WHERE rolname=%s",
+                       (role,)).fetchone()
+    if (not row or any(row[1:]) or conn.execute("SELECT current_user").fetchone()[0] == role
+            or conn.execute("SELECT 1 FROM pg_auth_members WHERE member=%s", (row[0],)).fetchone()):
+        raise ValueError("Runtime role must be separate, unprivileged and have no role memberships.")
+    conn.execute(sql.SQL("GRANT USAGE ON SCHEMA quantmesh TO {}").format(sql.Identifier(role)))
+    conn.execute(sql.SQL("GRANT SELECT ON quantmesh.schema_version,quantmesh.accounts TO {}").format(sql.Identifier(role)))
+    conn.execute(sql.SQL("GRANT SELECT,INSERT ON quantmesh.runs TO {}").format(sql.Identifier(role)))
+    conn.execute(sql.SQL("GRANT SELECT,INSERT,UPDATE,DELETE ON quantmesh.request_budget,"
+                        "quantmesh.market_cache,quantmesh.yahoo_history TO {}").format(sql.Identifier(role)))
+    conn.execute(sql.SQL("GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA quantmesh TO {}").format(sql.Identifier(role)))
+
+
 def grant_runtime(role):
     """Grant only web-app operations to an already-created, unprivileged login role."""
     with transaction() as conn:
-        row = conn.execute("SELECT oid,rolsuper,rolcreaterole,rolcreatedb,rolbypassrls FROM pg_roles WHERE rolname=%s",
-                           (role,)).fetchone()
-        if (not row or any(row[1:]) or conn.execute("SELECT current_user").fetchone()[0] == role
-                or conn.execute("SELECT 1 FROM pg_auth_members WHERE member=%s", (row[0],)).fetchone()):
-            raise ValueError("Runtime role must be separate, unprivileged and have no role memberships.")
-        conn.execute(sql.SQL("GRANT USAGE ON SCHEMA quantmesh TO {}").format(sql.Identifier(role)))
-        conn.execute(sql.SQL("GRANT SELECT ON quantmesh.schema_version,quantmesh.accounts TO {}").format(sql.Identifier(role)))
-        conn.execute(sql.SQL("GRANT SELECT,INSERT ON quantmesh.runs TO {}").format(sql.Identifier(role)))
-        conn.execute(sql.SQL("GRANT SELECT,INSERT,UPDATE,DELETE ON quantmesh.request_budget,"
-                            "quantmesh.market_cache,quantmesh.yahoo_history TO {}").format(sql.Identifier(role)))
-        conn.execute(sql.SQL("GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA quantmesh TO {}").format(sql.Identifier(role)))
+        _grant_runtime(conn, role)
+
+
+def create_runtime(role, password):
+    """Neon requires a plaintext DB-role password over TLS, not psql's client hash.
+
+    Utility DDL cannot use server bind parameters; psycopg Identifier/Literal
+    quote both values. No credential appears in CLI arguments, files or our logs.
+    This is a database connection password, not an end-user password record.
+    """
+    if (not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", role)
+            or not 32 <= len(password) <= 1024 or "\x00" in password):
+        raise ValueError("Use a safe database role name and a random 32+ character password.")
+    with transaction() as conn:
+        if conn.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (role,)).fetchone():
+            raise ValueError("Database role already exists; refusing to reset its password or privileges.")
+        conn.execute("SET LOCAL password_encryption = 'scram-sha-256'")
+        conn.execute(sql.SQL("CREATE ROLE {} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB "
+                            "NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD {}").format(
+                                sql.Identifier(role), sql.Literal(password)))
+        _grant_runtime(conn, role)
 
 
 def main():
@@ -170,6 +197,8 @@ def main():
     commands.add_parser("migrate")
     grant = commands.add_parser("grant-runtime")
     grant.add_argument("role")
+    create = commands.add_parser("create-runtime")
+    create.add_argument("role")
     export = commands.add_parser("export")
     export.add_argument("--destination", type=Path, required=True)
     for name in ("restore", "import-sqlite"):
@@ -180,6 +209,13 @@ def main():
     try:
         if args.command == "migrate":
             migrate()
+        elif args.command == "create-runtime":
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", getpass.GetPassWarning)
+                password = getpass.getpass("New runtime database password (random 32+ characters): ")
+                if password != getpass.getpass("Confirm runtime database password: "):
+                    raise ValueError("Passwords do not match.")
+            create_runtime(args.role, password)
         elif args.command == "grant-runtime":
             grant_runtime(args.role)
         elif args.command == "export":
@@ -187,7 +223,8 @@ def main():
         else:
             data = read_export(args.source) if args.command == "restore" else read_sqlite_backup(args.source)
             restore_state(data, app_stopped=args.app_stopped)
-    except (ServiceError, OSError, ValueError, sqlite3.Error, TypeError, KeyError):
+    except (ServiceError, OSError, ValueError, sqlite3.Error, TypeError, KeyError,
+            getpass.GetPassWarning, EOFError):
         raise SystemExit("Database operation failed. Check configuration, schema, private backup and empty-target requirements. No secrets were logged.") from None
     print("Database operation completed. Protect exported hashes and private research.")
 

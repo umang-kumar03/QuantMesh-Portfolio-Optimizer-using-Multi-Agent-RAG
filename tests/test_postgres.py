@@ -391,3 +391,47 @@ def test_cloud_entrypoint_with_explicit_environment_reaches_login(pgdb):
     assert not app.exception and len(app.metric) == 4
     app.button(key="save-research").click().run()
     assert not app.exception and list_runs("unused", owner="alice")
+
+
+def test_runtime_creation_is_atomic_restricted_and_quotes_password(pgdb, monkeypatch):
+    from quantmesh.pg_admin import create_runtime
+    role = "quantmesh_created_runtime_test"
+    with pg.transaction() as conn:
+        conn.execute(psycopg.sql.SQL("DROP ROLE IF EXISTS {}").format(psycopg.sql.Identifier(role)))
+    password = secrets.token_urlsafe(32) + "';DROP SCHEMA quantmesh;--"
+    create_runtime(role, password)
+    with pg.transaction() as conn:
+        stored = conn.execute("SELECT rolpassword FROM pg_authid WHERE rolname=%s", (role,)).fetchone()[0]
+        assert stored.startswith("SCRAM-SHA-256$") and password not in stored
+    with pytest.raises(ValueError, match="already exists"):
+        create_runtime(role, secrets.token_urlsafe(32))
+    original = pg.connection_settings()
+    monkeypatch.setenv("QUANTMESH_DATABASE_URL", psycopg.conninfo.make_conninfo(
+        **dict(original, user=role, password=password)))
+    assert set(load_users("unused")) == {"alice", "bob"}
+    save_run("unused", "restricted role", {}, owner="alice")
+    with pytest.raises(PersistenceError):
+        update_account(Path("unused"), "alice", action="revoke")
+    with pytest.raises(PersistenceError):
+        pg.migrate()
+
+
+def test_runtime_creation_rejects_unsafe_role_or_weak_password():
+    from quantmesh.pg_admin import create_runtime
+    for name, password in [("unsafe;DROP", "a" * 40), ("safe_name", "short")]:
+        with pytest.raises(ValueError, match="safe database role"):
+            create_runtime(name, password)
+
+
+def test_runtime_cli_refuses_unprotected_password_input(monkeypatch, capsys):
+    import getpass
+    import warnings
+    from quantmesh.pg_admin import main
+    monkeypatch.setattr(sys, "argv", ["pg_admin", "create-runtime", "safe_role"])
+    def unprotected_input(_):
+        warnings.warn("Cannot protect terminal input", getpass.GetPassWarning)
+        raise AssertionError("Unprotected password input must not continue")
+    monkeypatch.setattr(getpass, "getpass", unprotected_input)
+    with pytest.raises(SystemExit, match="No secrets were logged"):
+        main()
+    assert not capsys.readouterr().out

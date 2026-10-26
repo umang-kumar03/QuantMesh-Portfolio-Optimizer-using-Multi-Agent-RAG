@@ -147,3 +147,12 @@ bounded recovery, truncation, timeouts and Streamlit error/recovery presentation
   capacity issue. No host ports were exposed. ARM/native provider builds remain
   unverified. Streamlit secrets, .env variants and custom SQLite files are excluded
   from Docker build contexts.
+
+- Neon-specific provisioning correction: official role documentation requires a
+  plaintext database password over TLS (client-hashed psql password updates are not
+  supported). `pg_admin create-runtime` now securely prompts, creates a separate
+  SQL role with SCRAM-SHA-256 storage and grants only runtime operations atomically.
+  It quotes utility DDL with psycopg (ordinary bind parameters are not supported
+  there), refuses existing roles and aborts if terminal input cannot be hidden.
+  Re-run full suite: **157 passed**, including special-character password quoting,
+  real restricted-role login/grants, SCRAM storage and secure-input failure checks.

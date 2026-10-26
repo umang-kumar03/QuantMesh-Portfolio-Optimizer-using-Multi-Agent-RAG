@@ -37,8 +37,8 @@ of uncertain saves is not implemented.
 
 ## 1. Prepare your local operator environment
 
-Use Python 3.12 on Linux/macOS/WSL and PostgreSQL client tools (`psql`) matching
-PostgreSQL 17 or newer. Follow your OS's official installation instructions.
+Use Python 3.12 on Linux/macOS/WSL and optionally PostgreSQL client tools for
+advanced operator work. Follow your OS's official installation instructions.
 From the checkout:
 
 ```sh
@@ -122,23 +122,29 @@ protects against accidental corruption, not a maliciously rewritten backup.
 
 ## 4. Create a restricted web-app role
 
-Use the owner connection in `psql` without exposing its URL in process arguments:
+Use the owner environment from step 2 and a **new** database role name:
 
 ```sh
-PGDATABASE="$QUANTMESH_DATABASE_URL" psql
+python -m quantmesh.pg_admin create-runtime quantmesh_app
 ```
 
-Inside `psql` run the following for a **new** role. Never use the owner or a role
-with `neon_superuser`/other role memberships as the runtime role:
+The command privately prompts twice for a random **32+ character database password**
+from your password manager. It creates a SQL role without administrator memberships
+and grants only runtime operations in the same transaction. PostgreSQL stores the
+connection password as SCRAM-SHA-256; no plaintext password row is created. It refuses an existing
+role instead of silently resetting its password. Never use the owner or a role
+with `neon_superuser`/other memberships as the runtime role. End-user passwords
+continue to use scrypt; this separate database connection credential follows Neon’s
+required password provisioning protocol over verified TLS.
 
-```sql
-CREATE ROLE quantmesh_app LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
-\password quantmesh_app
-\q
-```
-
-`\password` securely prompts for a separate strong database password. Keep it in
-your password manager. Then grant the exact runtime operations:
+**Do not substitute `psql \password`:** Neon's official SQL-role documentation says
+client-hashed database passwords are unsupported. The operator helper sends the
+connection password via safely quoted DDL over TLS, never command arguments,
+files or application logs. PostgreSQL utility DDL cannot use ordinary bind parameters;
+psycopg quotes the role/password using Identifier/Literal. Operator database-side
+statement logging must remain restricted: review Neon's logging policy and do not
+turn on verbose credential-bearing SQL tracing. Existing separately created safe
+roles can instead receive grants without changing their password:
 
 ```sh
 python -m quantmesh.pg_admin grant-runtime quantmesh_app
@@ -152,11 +158,16 @@ export and restore use the private owner connection instead. Re-run reviewed gra
 after future schema upgrades. Use a dedicated fresh role; this command adds grants
 and is not a scrubber for arbitrary pre-existing privileges.
 
-In Neon's Connect dialog select `quantmesh_app` and enable **connection pooling**.
-Copy that role's pooled URL (`-pooler` hostname), with its own password and TLS
-parameters. Do not accidentally copy the owner URL. Keep the direct owner URL for
-operator work. Transaction-scoped advisory locks are compatible with pooling;
-no session-level locks or server-side prepared statements are required.
+In Neon's Connect dialog enable **connection pooling**. Select `quantmesh_app`
+if it is listed. If the SQL-created role is absent from the selector, edit a
+**private copy** of the pooled connection URL: retain the `-pooler` host, database
+and TLS query parameters, and replace the username/password with `quantmesh_app`
+and its own password. URL-encode special characters in credentials locally; never
+use an online password/URL encoder. A long random alphanumeric password avoids
+URI-escaping ambiguity. The secrets template shows the URL shape. Do not copy
+the owner password into Cloud settings. Keep the direct owner URL for operator
+work. Transaction-scoped advisory locks are compatible with pooling; no
+session-level locks or server-side prepared statements are required.
 
 ## 5. Configure Community Cloud without publishing yet
 
@@ -294,6 +305,7 @@ References:
 [Free quotas](https://neon.com/faq/free-plan-limits-and-quotas),
 [TLS](https://neon.com/docs/connect/connect-securely),
 [Pooling](https://neon.com/docs/connect/connection-pooling),
+[SQL roles and password requirements](https://neon.com/docs/manage/roles#manage-roles-with-sql),
 [Streamlit resources/hibernation](https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app).
 Verified Neon source snapshot:
 [plans](https://github.com/neondatabase/website/blob/36e4c506cb373d9928768d0b61ca54857cbc53f6/content/docs/introduction/plans.md),

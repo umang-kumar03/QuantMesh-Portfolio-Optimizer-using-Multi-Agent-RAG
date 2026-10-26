@@ -10,6 +10,10 @@ selecting a free plan. Existing manually configured services must add
 `QUANTMESH_STORAGE_MODE=persistent-local` before upgrading; this declaration cannot
 make an ephemeral disk durable. Compose and the paid Render Blueprint include it.
 
+The backend default remains SQLite. PostgreSQL mode instead checks remote schema
+and provisioned accounts and does not require local durable paths. Keep this Render
+Blueprint in SQLite mode; the independent Cloud guide covers remote storage.
+
 ## Recommendation and limits
 
 Use **one Render Python web-service instance with a persistent disk**, Standard
@@ -22,9 +26,9 @@ at `/var/data`; automatic deployment is off. Apply only after explicit owner app
 SQLite is appropriate here because there is one process/instance on a local durable
 disk with short transactions, WAL, full synchronous commits and a 10-second lock wait.
 Do not use a network share, multiple replicas, or a serverless ephemeral filesystem.
-For higher scale or a platform without persistent local disks, migrate the journal,
-accounts and login budgets to a supported PostgreSQL/identity design first; do not
-reuse this SQLite configuration there. Native Render runtime avoids Docker mount
+For a platform without persistent local disks, use the separately supported
+[complete PostgreSQL mode](neon-community-cloud.md); do not reuse this SQLite
+configuration there. Native Render runtime avoids Docker mount
 ownership surprises. Docker Compose remains available for private self-hosting.
 
 Render manages HTTPS termination and the public onrender.com URL/custom domain.

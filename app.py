@@ -194,7 +194,7 @@ with data:
     st.caption("Report includes parameters, data fingerprint, split dates, metrics, and weights. "
                "Export prices as well to reproduce an imported dataset.")
 with saved:
-    st.subheader("Local research journal")
+    st.subheader("Private research journal")
     st.caption("Research is scoped to your signed-in account. Uploaded raw prices are not saved.")
     name = st.text_input("Research name", "Portfolio experiment")
     db = os.environ.get("QUANTMESH_DB", ".quantmesh/research.sqlite3")
@@ -205,7 +205,7 @@ with saved:
         for run in list_runs(db, owner=owner):
             with st.expander(f"#{run['id']} · {run['name']} · {run['created'][:19]} UTC"):
                 st.json(run["payload"])
-    except (OSError, ValueError, sqlite3.Error):
+    except (ServiceError, OSError, ValueError, sqlite3.Error):
         st.error("Research journal is unavailable. Check storage permissions and retry; "
                  "contact the operator if the problem persists.")
 st.divider()

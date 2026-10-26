@@ -121,12 +121,26 @@ Render HTTPS, Blueprint control-plane acceptance and live storage must still be
 verified after approval; no claim of a tested public deployment or complete
 production security certification is made.
 
-## Free-hosting storage boundary
+## Explicit PostgreSQL backend
 
-Production startup requires `QUANTMESH_STORAGE_MODE=persistent-local` in addition
-to multi-user authentication and durable paths. This is an operator declaration,
-not a persistence detector. Do not use it to bypass an ephemeral host limitation.
-Both account membership/revocation and login/provider budgets must persist along
-with owner-scoped research. No external SQL backend or partial migration is added.
-See [free-hosting compatibility](free-hosting.md) for verified evidence, unverified
-provider quotas, the private Compose demo path and remaining deployment gates.
+`QUANTMESH_BACKEND=sqlite` (default) preserves existing JSON accounts, SQLite data,
+Docker/Render durable-disk startup and backup procedures. SQLite production still
+requires `QUANTMESH_STORAGE_MODE=persistent-local`. `QUANTMESH_BACKEND=postgres`
+requires multi-user mode and a private `QUANTMESH_DATABASE_URL`; it stores accounts,
+revocation, owner-scoped research, all login/provider budgets and validated market
+caches in PostgreSQL. It never falls back to JSON, SQLite or single-user access.
+`cloud_app.py` separately requires explicit postgres/production/multi-user settings
+before loading the dashboard. Database failures stop access; provider sample fallback
+cannot mask a storage outage. Schema/account provisioning is operator-only, not a
+runtime migration or public registration flow.
+
+See [Community Cloud + Neon](neon-community-cloud.md) for exact secrets, TLS,
+restricted role grants, free-tier quotas, import/export/restore and residual risks.
+Connections use certificate/hostname verification remotely, bounded timeouts and
+transaction-scoped locks. Application owner predicates remain mandatory; DB row-level
+security is not implemented. Secrets belong in platform settings, never Git or DB
+rows. No hosted TLS/disk/network/uptime assurance is claimed from local tests.
+
+Docker build contexts exclude `.streamlit/secrets.toml`, `.env` variants and custom
+SQLite files. The Cloud template deliberately leaves the signing secret empty so
+a copied template cannot start with a publicly known placeholder signing key.

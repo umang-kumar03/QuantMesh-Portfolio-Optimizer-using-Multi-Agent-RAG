@@ -1,9 +1,10 @@
+from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 
 def test_dashboard_and_save_research(tmp_path, monkeypatch):
     monkeypatch.setenv("QUANTMESH_DB", str(tmp_path / "research.db"))
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     assert not app.exception
     assert len(app.metric) == 4
     assert len(app.tabs) == 5
@@ -15,7 +16,7 @@ def test_dashboard_and_save_research(tmp_path, monkeypatch):
 
 
 def test_infeasible_configuration_shows_error():
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     app.sidebar.slider[1].set_value(10).run()
     assert not app.exception
     assert any("infeasible" in message.value for message in app.error)
@@ -25,7 +26,7 @@ def test_live_history_without_key_displays_sample_fallback(tmp_path, monkeypatch
     monkeypatch.delenv("ALPHAVANTAGE_API_KEY", raising=False)
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "market.db"))
     monkeypatch.setenv("QUANTMESH_DB", str(tmp_path / "research.db"))
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     app.sidebar.radio[0].set_value("Alpha Vantage").run()
     assert not app.exception
     load = next(button for button in app.button if button.label == "Load market history")
@@ -43,7 +44,7 @@ def test_live_history_without_key_displays_sample_fallback(tmp_path, monkeypatch
 def test_optional_ai_missing_key_preserves_analytics(tmp_path, monkeypatch):
     monkeypatch.delenv("QUANTMESH_LLM_API_KEY", raising=False)
     monkeypatch.setenv("QUANTMESH_DB", str(tmp_path / "research.db"))
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     consent = next(c for c in app.checkbox if c.label.startswith("I agree"))
     consent.check().run()
     next(b for b in app.button if b.label == "Generate AI explanation").click().run()

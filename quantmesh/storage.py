@@ -7,6 +7,9 @@ from quantmesh.sqlite_utils import open_database
 
 @contextmanager
 def connect(path: str):
+    from quantmesh.backend import backend, PersistenceError
+    if backend() != "sqlite":
+        raise PersistenceError("SQLite access is disabled for the selected backend.")
     conn = open_database(path)
     try:
         with conn:
@@ -30,6 +33,10 @@ def save_run(path: str, name: str, payload: dict, *, owner: str = "local") -> in
     validate_owner(owner)
     if not name.strip() or len(name) > 100:
         raise ValueError("Run name must contain 1 to 100 characters.")
+    from quantmesh.backend import backend
+    if backend() == "postgres":
+        from quantmesh.postgres import save_run as save
+        return save(name, payload, owner)
     with connect(path) as conn:
         cursor = conn.execute("INSERT INTO runs(created,name,payload,owner) VALUES (?,?,?,?)",
                               (datetime.now(timezone.utc).isoformat(), name.strip(),
@@ -39,6 +46,10 @@ def save_run(path: str, name: str, payload: dict, *, owner: str = "local") -> in
 
 def list_runs(path: str, *, owner: str = "local") -> list[dict]:
     validate_owner(owner)
+    from quantmesh.backend import backend
+    if backend() == "postgres":
+        from quantmesh.postgres import list_runs as read
+        return read(owner)
     with connect(path) as conn:
         rows = conn.execute("SELECT id,created,name,payload FROM runs WHERE owner=? "
                             "ORDER BY id DESC LIMIT 50", (owner,))

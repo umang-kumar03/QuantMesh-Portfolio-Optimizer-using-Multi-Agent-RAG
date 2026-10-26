@@ -1,4 +1,5 @@
 """Groq contracts use synthetic responses only; never require provider credentials."""
+from pathlib import Path
 import json
 
 import pytest
@@ -152,7 +153,7 @@ def test_streamlit_shows_sanitized_groq_failure_and_preserves_dashboard(tmp_path
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "budget.db"))
     session = Session([failure(400, "context_length_exceeded")])
     monkeypatch.setattr(requests, "request", session.request)
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     next(c for c in app.checkbox if c.label.startswith("I agree")).check().run()
     next(b for b in app.button if b.label == "Generate AI explanation").click().run()
     assert not app.exception and len(app.metric) == 4
@@ -169,7 +170,7 @@ def test_streamlit_groq_recovery_is_disclosed(tmp_path, monkeypatch):
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "budget.db"))
     session = Session([failure(400, "json_validate_failed"), completion()])
     monkeypatch.setattr(requests, "request", session.request)
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     next(t for t in app.text_input if t.label == "Find methodology evidence").set_value("risk volatility")
     next(c for c in app.checkbox if c.label.startswith("I agree")).check().run()
     next(b for b in app.button if b.label == "Generate AI explanation").click().run()

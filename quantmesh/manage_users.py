@@ -4,20 +4,27 @@ import getpass
 from pathlib import Path
 
 from quantmesh.auth import USERNAME, password_record
+from quantmesh.backend import backend
+from quantmesh.http import ServiceError
 from quantmesh.account_store import update_account
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("username")
-    parser.add_argument("--file", required=True, help="Private users JSON file, outside the checkout")
+    parser.add_argument("--file", help="Private users JSON file, outside the checkout")
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--revoke", action="store_true", help="Revoke sessions without changing password")
     actions.add_argument("--disable", action="store_true", help="Remove account access (never reuse usernames)")
     args = parser.parse_args()
     if not USERNAME.fullmatch(args.username) or args.username == "local":
         parser.error("Use a lowercase username of 1–64 safe characters; local is reserved.")
-    target = Path(args.file).resolve()
+    selected = backend()
+    if selected == "sqlite" and not args.file:
+        parser.error("SQLite requires --file outside the checkout.")
+    if selected == "postgres" and args.file:
+        parser.error("PostgreSQL provisioning does not accept --file.")
+    target = Path(args.file).resolve() if args.file else Path("/unused-postgres-account-file")
     checkout = Path(__file__).resolve().parents[1]
     working_directory = Path.cwd().resolve()
     in_project = ((working_directory / "app.py").is_file()
@@ -36,4 +43,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ServiceError as exc:
+        raise SystemExit(str(exc)) from None

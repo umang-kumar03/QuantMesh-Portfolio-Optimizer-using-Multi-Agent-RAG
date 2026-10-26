@@ -16,6 +16,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.14
+      - key: QUANTMESH_BACKEND
+        value: sqlite
       - key: QUANTMESH_DEPLOYMENT
         value: production
       - key: QUANTMESH_AUTH_MODE

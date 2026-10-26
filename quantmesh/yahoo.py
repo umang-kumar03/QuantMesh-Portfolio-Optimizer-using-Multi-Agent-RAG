@@ -14,7 +14,8 @@ import pandas as pd
 
 from quantmesh.data import sample_prices, validate_prices
 from quantmesh.http import ServiceError
-from quantmesh.market import MarketResult, database, reserve_request
+from quantmesh.market import MarketResult, cache_get, cache_put, reserve_request
+from quantmesh.backend import PersistenceError
 
 
 def extract_adjusted(raw: pd.DataFrame, symbols: list[str], start: date,
@@ -117,11 +118,7 @@ class YahooClient:
         now = self.clock()
         cache_key = hashlib.sha256(json.dumps([symbols, str(start), str(end), "adj-close-v1"]).encode()).hexdigest()
         try:
-            with database(self.path) as conn:
-                conn.execute("CREATE TABLE IF NOT EXISTS yahoo_history "
-                             "(cache_key TEXT PRIMARY KEY, fetched REAL NOT NULL, payload TEXT NOT NULL)")
-                cached = conn.execute("SELECT fetched,payload FROM yahoo_history WHERE cache_key=?",
-                                      (cache_key,)).fetchone()
+            cached = cache_get(self.path, "yahoo_history", cache_key)
             if cached and 0 <= now - cached[0] < 21600:
                 try:
                     payload = json.loads(cached[1])
@@ -163,11 +160,10 @@ class YahooClient:
                           "frequency": "historical end-of-day; not real-time quotes"}
             payload = json.dumps({"prices": prices.to_json(orient="table", date_format="iso"),
                                   "provenance": provenance}, allow_nan=False)
-            with database(self.path) as conn:
-                conn.execute("INSERT OR REPLACE INTO yahoo_history VALUES (?,?,?)", (cache_key, now, payload))
-                conn.execute("DELETE FROM yahoo_history WHERE cache_key NOT IN "
-                             "(SELECT cache_key FROM yahoo_history ORDER BY fetched DESC LIMIT 64)")
+            cache_put(self.path, "yahoo_history", cache_key, now, payload)
             return MarketResult(prices, provenance)
+        except PersistenceError:
+            raise
         except (ServiceError, OSError, sqlite3.Error, ValueError, TypeError) as exc:
             # Never return raw yfinance/curl/cache exceptions to the UI, even with fallback disabled.
             message = str(exc) if isinstance(exc, ServiceError) else "Yahoo Finance service or cache is unavailable."

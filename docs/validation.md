@@ -108,3 +108,42 @@ bounded recovery, truncation, timeouts and Streamlit error/recovery presentation
   direct provider documentation URLs returned proxy 403. Unretrieved current plan
   quotas are explicitly unverified in free-hosting.md. No hosted resources/accounts
   were created and no public deployment was performed.
+
+
+## Complete PostgreSQL / Community Cloud follow-up (2026-10-26)
+
+- **154 tests passed**, zero skipped, on Python 3.12.14 with a real disposable
+  PostgreSQL 17 server. CI now supplies PostgreSQL 17 for both Python 3.11/3.12
+  matrix jobs. Local runs without QUANTMESH_TEST_DATABASE_URL intentionally skip
+  real-DB cases; fixtures refuse databases not explicitly named *_test.
+- Coverage includes concurrent account updates/revocations, two-user isolation and
+  logout, password hashing, session expiry, persisted login/provider limits under
+  concurrency, schema repeatability/newer-version refusal, real restricted-role
+  grants, all-or-nothing SQLite full-state import, snapshot recovery/ID sequences,
+  transaction rollback, terminated-connection recovery, and fail-closed UI/storage
+  errors. Yahoo, Alpha and Groq network responses are mocked; all previous analytics,
+  CSV/export, RAG, optimization/backtesting and SQLite production tests remain.
+- Actual restricted **login-role** connection (separate from the owner), guarded
+  Cloud entrypoint/login gate and local HTTP health passed. Restarting the local
+  PostgreSQL container preserved accounts and isolated research and reconnected
+  successfully. Runtime DDL was denied. No real Neon credential was used.
+- Ruff, pip check and git diff --check passed. The initial security audit found
+  newly reported advisories in existing Certifi/Pillow pins. Updated Certifi to
+  2026.10.19 and Pillow to 13.0.0; Streamlit 1.66.1 is required for Pillow 13
+  compatibility. New transitive server dependencies are pinned. Final pip-audit:
+  **62 pinned packages, no known vulnerabilities**; dependency-audit.json refreshed.
+  Existing AppTest checks now use absolute paths for Streamlit's changed path
+  resolution; no assertions were removed.
+- Free-tier facts were checked in Neon's official public source (plans updated
+  2026-10-23). No live Neon/Community Cloud deployment, hosted TLS/network acceptance,
+  actual cloud quotas/eligibility or public URL was verified. The guide names those
+  remaining gates and no Free uptime guarantee is claimed.
+
+- Rebuilt the Python 3.12 Linux **offline production image** with current pinned
+  wheels. Missing signing configuration failed before serving. Non-root UID 10001
+  SQLite/JSON auth, private exports, journal isolation and server restarts passed
+  twice in recreated containers on the same local Docker volume. Temporary files
+  used tmpfs after the workspace VFS layer exhausted disk; this was an environment
+  capacity issue. No host ports were exposed. ARM/native provider builds remain
+  unverified. Streamlit secrets, .env variants and custom SQLite files are excluded
+  from Docker build contexts.

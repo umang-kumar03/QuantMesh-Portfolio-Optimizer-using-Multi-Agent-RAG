@@ -16,6 +16,10 @@ def preflight() -> dict[str, Path]:
     if os.environ.get("QUANTMESH_AUTH_MODE") != "multi-user":
         raise ServiceError("Production startup requires QUANTMESH_AUTH_MODE=multi-user.")
     session_key()
+    from quantmesh.backend import backend
+    if backend() == "postgres":
+        load_users("")  # Checks connectivity/schema and valid provisioned accounts; no DDL.
+        return {}
     if os.environ.get("QUANTMESH_STORAGE_MODE") != "persistent-local":
         raise ServiceError("Production requires QUANTMESH_STORAGE_MODE=persistent-local on a durable "
                            "local disk. Ephemeral storage and external database URLs are unsupported; "

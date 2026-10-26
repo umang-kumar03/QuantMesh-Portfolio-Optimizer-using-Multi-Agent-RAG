@@ -24,13 +24,21 @@ def password_record(password: str) -> dict:
     return {"salt": salt.hex(), "hash": digest.hex()}
 
 
-def load_users(path: str) -> dict:
+def load_file_users(path: str) -> dict:
     try:
         with Path(path).open("rb") as account_file:
             raw = account_file.read(1024 * 1024 + 1)
         if len(raw) > 1024 * 1024:
             raise ValueError
         users = json.loads(raw)
+        return validate_users(users)
+    except (OSError, ValueError, TypeError, KeyError):
+        raise ServiceError("Authentication configuration is unavailable or invalid. "
+                           "Provision users using python -m quantmesh.manage_users.") from None
+
+
+def validate_users(users):
+    try:
         if not isinstance(users, dict) or not 1 <= len(users) <= 1000:
             raise ValueError
         for name, record in users.items():
@@ -43,9 +51,16 @@ def load_users(path: str) -> dict:
             if len(bytes.fromhex(record["salt"])) != 16 or len(bytes.fromhex(record["hash"])) != 64:
                 raise ValueError
         return users
-    except (OSError, ValueError, TypeError, KeyError):
-        raise ServiceError("Authentication configuration is unavailable or invalid. "
-                           "Provision users using python -m quantmesh.manage_users.") from None
+    except (ValueError, TypeError, KeyError):
+        raise ServiceError("Authentication configuration is unavailable or invalid.") from None
+
+
+def load_users(path: str) -> dict:
+    from quantmesh.backend import backend
+    if backend() == "postgres":
+        from quantmesh.postgres import users
+        return users()
+    return load_file_users(path)
 
 
 def session_key() -> bytes:
@@ -57,6 +72,9 @@ def session_key() -> bytes:
 
 def login(username: str, password: str, users: dict, key: bytes, budget_path: str,
           now: float | None = None) -> str:
+    from quantmesh.backend import backend
+    if backend() == "postgres":
+        users = load_users("")  # Never authenticate from a stale caller snapshot.
     now = time.time() if now is None else now
     if len(username) > 64 or len(password) > 1024:
         raise ServiceError("Invalid username or password.")
@@ -103,6 +121,15 @@ def require_user(st) -> str:
     """Run before any upload, provider, report or storage UI is created."""
     mode = os.environ.get("QUANTMESH_AUTH_MODE", "single-user")
     deployment = os.environ.get("QUANTMESH_DEPLOYMENT", "local")
+    from quantmesh.backend import backend, PersistenceError
+    try:
+        selected = backend()
+    except PersistenceError as exc:
+        st.error(str(exc))
+        st.stop()
+    if selected == "postgres" and mode != "multi-user":
+        st.error("PostgreSQL requires multi-user authentication. Access denied.")
+        st.stop()
     if deployment not in {"local", "production"} or (deployment == "production" and mode != "multi-user"):
         st.error("Production deployment requires multi-user authentication. Access denied.")
         st.stop()

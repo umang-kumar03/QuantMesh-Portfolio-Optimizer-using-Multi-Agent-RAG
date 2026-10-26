@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from quantmesh.sqlite_utils import open_database
+from quantmesh.backend import backend, PersistenceError, CACHE_TABLES
 
 import numpy as np
 import pandas as pd
@@ -20,6 +21,8 @@ DOCUMENTATION = "https://www.alphavantage.co/documentation/#dailyadj"
 
 @contextmanager
 def database(path):
+    if backend() != "sqlite":
+        raise PersistenceError("SQLite access is disabled for the selected backend.")
     conn = open_database(path)
     try:
         with conn:
@@ -27,6 +30,8 @@ def database(path):
                          "(symbol TEXT PRIMARY KEY, fetched REAL NOT NULL, payload TEXT NOT NULL)")
             conn.execute("CREATE TABLE IF NOT EXISTS request_budget "
                          "(service TEXT NOT NULL, requested REAL NOT NULL)")
+            conn.execute("CREATE TABLE IF NOT EXISTS yahoo_history "
+                         "(cache_key TEXT PRIMARY KEY, fetched REAL NOT NULL, payload TEXT NOT NULL)")
             yield conn
     finally:
         conn.close()
@@ -35,6 +40,9 @@ def database(path):
 def reserve_request(path: str, service: str, per_minute: int, per_day: int,
                     now: float | None = None):
     now = time.time() if now is None else now
+    if backend() == "postgres":
+        from quantmesh.postgres import reserve
+        return reserve(service, per_minute, per_day, now)
     with database(path) as conn:
         conn.execute("BEGIN IMMEDIATE")
         conn.execute("DELETE FROM request_budget WHERE requested < ?", (now - 86400,))
@@ -86,9 +94,7 @@ class MarketClient:
 
     def history(self, symbol: str) -> tuple[pd.Series, float, str]:
         now = self.clock()
-        with database(self.path) as conn:
-            cached = conn.execute("SELECT fetched,payload FROM market_cache WHERE symbol=?",
-                                  (symbol,)).fetchone()
+        cached = cache_get(self.path, "market_cache", symbol)
         previous = None
         if cached:
             try:
@@ -108,12 +114,10 @@ class MarketClient:
             # Persist only validated prices and required identity, never arbitrary response metadata.
             safe_payload = {"Meta Data": {"2. Symbol": symbol}, "Time Series (Daily)": {
                 str(day.date()): {"5. adjusted close": float(value)} for day, value in series.items()}}
-            with database(self.path) as conn:
-                conn.execute("INSERT OR REPLACE INTO market_cache VALUES (?,?,?)",
-                             (symbol, now, json.dumps(safe_payload, allow_nan=False)))
-                conn.execute("DELETE FROM market_cache WHERE symbol NOT IN "
-                             "(SELECT symbol FROM market_cache ORDER BY fetched DESC LIMIT 64)")
+            cache_put(self.path, "market_cache", symbol, now, json.dumps(safe_payload, allow_nan=False))
             return series, now, "provider"
+        except PersistenceError:
+            raise
         except ServiceError:
             if cached and 0 <= now - cached[0] <= self.stale_limit:
                 return previous, cached[0], "stale cache"
@@ -148,6 +152,8 @@ class MarketClient:
                                 "documentation": DOCUMENTATION, "symbols": details,
                                 "alignment": "intersection of dates; no imputation",
                                 "requested_start": str(start), "requested_end": str(end)}, warning)
+        except PersistenceError:
+            raise
         except (ServiceError, sqlite3.Error, OSError) as exc:
             if not fallback:
                 raise ServiceError(str(exc) if isinstance(exc, ServiceError)
@@ -157,3 +163,23 @@ class MarketClient:
                                 "requested_symbols": symbols},
                                 reason + " SYNTHETIC SAMPLE substituted for the entire portfolio; "
                                 "requested tickers and dates do not describe this dataset.")
+
+
+def cache_get(path, table, key):
+    column = CACHE_TABLES[table]
+    if backend() == "postgres":
+        from quantmesh.postgres import cache_get as read
+        return read(table, key)
+    with database(path) as conn:
+        return conn.execute(f"SELECT fetched,payload FROM {table} WHERE {column}=?", (key,)).fetchone()
+
+
+def cache_put(path, table, key, fetched, payload):
+    column = CACHE_TABLES[table]
+    if backend() == "postgres":
+        from quantmesh.postgres import cache_put as write
+        return write(table, key, fetched, payload)
+    with database(path) as conn:
+        conn.execute(f"INSERT OR REPLACE INTO {table} VALUES (?,?,?)", (key, fetched, payload))
+        conn.execute(f"DELETE FROM {table} WHERE {column} NOT IN "
+                     f"(SELECT {column} FROM {table} ORDER BY fetched DESC LIMIT 64)")

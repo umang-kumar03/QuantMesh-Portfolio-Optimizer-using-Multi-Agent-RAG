@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 import os
 import secrets
@@ -48,7 +49,7 @@ def test_production_rejects_single_user_before_dashboard(production, monkeypatch
     monkeypatch.setenv("QUANTMESH_AUTH_MODE", "single-user")
     with pytest.raises(ServiceError, match="multi-user"):
         preflight()
-    app = AppTest.from_file("app.py").run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     assert not app.exception and not app.metric
     assert any("Access denied" in e.value for e in app.error)
 
@@ -174,14 +175,14 @@ def test_new_streamlit_session_requires_login_but_disk_data_survives(production)
     root, _ = production
     preflight()
     save_run(str(root / "research.sqlite3"), "Durable research", {}, owner="alice")
-    app = AppTest.from_file("app.py").run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     assert not app.exception and not app.metric
     app.text_input[0].set_value("alice")
     app.text_input[1].set_value("test-long-password-alice")
     app.button[0].click().run()
     assert not app.exception and len(app.metric) == 4
     assert any("Durable research" in e.label for e in app.expander)
-    restarted = AppTest.from_file("app.py").run()
+    restarted = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     assert not restarted.exception and not restarted.metric
     assert len(list_runs(str(root / "research.sqlite3"), owner="alice")) == 1
 

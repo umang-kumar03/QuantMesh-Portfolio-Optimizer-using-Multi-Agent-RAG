@@ -31,6 +31,9 @@ def digest(path: Path) -> str:
 
 
 def backup(data_dir: Path, destination: Path):
+    from quantmesh.backend import backend, PersistenceError
+    if backend() != "sqlite":
+        raise PersistenceError("Use python -m quantmesh.pg_admin export for PostgreSQL backups.")
     from quantmesh.serve import preflight
     paths = preflight()
     if data_dir.resolve() != Path(os.environ["QUANTMESH_DATA_DIR"]).resolve():

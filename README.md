@@ -58,9 +58,11 @@ Use consistent currencies and verify corporate-action adjustments.
 |---|---|
 | Adjusted daily historical prices | `ALPHAVANTAGE_API_KEY` with `TIME_SERIES_DAILY_ADJUSTED`/full-history plan entitlement (normally premium) |
 | Generated explanation | `QUANTMESH_LLM_API_KEY`, `QUANTMESH_LLM_PROVIDER=openai` or `groq`, optional `QUANTMESH_LLM_MODEL` |
-| Private multi-user access | `QUANTMESH_AUTH_MODE=multi-user`, protected `QUANTMESH_USERS_FILE`, raw random `QUANTMESH_SESSION_SECRET` (32+ characters) |
+| SQLite multi-user access | `QUANTMESH_AUTH_MODE=multi-user`, protected `QUANTMESH_USERS_FILE`, raw random `QUANTMESH_SESSION_SECRET` (32+ characters) |
+| PostgreSQL multi-user access | `QUANTMESH_BACKEND=postgres`, `QUANTMESH_AUTH_MODE=multi-user`, private `QUANTMESH_DATABASE_URL`, stable `QUANTMESH_SESSION_SECRET`; [schema/runtime-role setup](docs/neon-community-cloud.md) |
 
 Provision accounts using `python -m quantmesh.manage_users USER --file /absolute/private/users.json`.
+In PostgreSQL mode, omit `--file` and use the protected operator database connection.
 Passwords are securely prompted, never supplied as command arguments. Never commit
 credentials; `.env.example` documents names only. The app does not load `.env`
 automatically. Provider requests need allowed outbound HTTPS destinations and

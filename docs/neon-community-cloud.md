@@ -311,3 +311,16 @@ Verified Neon source snapshot:
 [plans](https://github.com/neondatabase/website/blob/36e4c506cb373d9928768d0b61ca54857cbc53f6/content/docs/introduction/plans.md),
 [quotas](https://github.com/neondatabase/website/blob/36e4c506cb373d9928768d0b61ca54857cbc53f6/content/faqs/free-plan-limits-and-quotas.md).
 Provider eligibility and future terms remain the owner's responsibility.
+
+### Windows certificate trust
+
+If system CA verification fails locally but a trusted CA PEM bundle succeeds,
+set `QUANTMESH_SSLROOTCERT` to its absolute PEM path in your private local
+PowerShell environment. For example, with certifi installed:
+
+```powershell
+$env:QUANTMESH_SSLROOTCERT = .\.venv\Scripts\python.exe -c "import certifi; print(certifi.where())"
+```
+
+Certificate and hostname verification remain required (`verify-full`). Do not
+copy a Windows CA path into Streamlit Cloud secrets.

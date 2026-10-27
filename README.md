@@ -70,6 +70,8 @@ account/model permissions. No API key is required for sample/CSV deterministic r
 
 Groq troubleshooting and local verification: [deployment guide](docs/deployment.md#verify-groq-explanations-locally).
 
+PostgreSQL Cloud startup errors: [TLS diagnostics](docs/postgres-tls.md).
+
 ## Checks
 
 ```sh

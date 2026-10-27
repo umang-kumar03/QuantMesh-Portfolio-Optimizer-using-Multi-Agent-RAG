@@ -1,5 +1,6 @@
 """Real PostgreSQL tests require an explicitly disposable *_test database. No provider keys."""
 import json
+import certifi
 import os
 import secrets
 import subprocess
@@ -265,7 +266,7 @@ def test_cloud_refuses_unsafe_backend(monkeypatch, mode):
 def test_remote_database_tls_enforced(monkeypatch):
     monkeypatch.setenv("QUANTMESH_DATABASE_URL", "postgresql://user:test-only@db.example.org/db?sslmode=disable")
     settings = pg.connection_settings()
-    assert settings["sslmode"] == "verify-full" and settings["sslrootcert"] == "system"
+    assert settings["sslmode"] == "verify-full" and settings["sslrootcert"] == certifi.where()
     assert settings["connect_timeout"] == "10"
 
 

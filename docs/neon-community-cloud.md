@@ -324,3 +324,11 @@ $env:QUANTMESH_SSLROOTCERT = .\.venv\Scripts\python.exe -c "import certifi; prin
 
 Certificate and hostname verification remain required (`verify-full`). Do not
 copy a Windows CA path into Streamlit Cloud secrets.
+
+### Cloud TLS startup failures
+
+Use the [verified TLS diagnostic guide](postgres-tls.md). Blank/unset CA settings
+already use the pinned Certifi bundle. The fixed startup code distinguishes CA
+files, issuer chains, hostname mismatch, certificate dates, channel binding and
+network errors without showing credentials. No universal Secret edit or reboot
+is prescribed. Explicit `system` now means native libpq roots.

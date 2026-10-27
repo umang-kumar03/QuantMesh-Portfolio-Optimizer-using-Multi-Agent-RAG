@@ -144,3 +144,13 @@ rows. No hosted TLS/disk/network/uptime assurance is claimed from local tests.
 Docker build contexts exclude `.streamlit/secrets.toml`, `.env` variants and custom
 SQLite files. The Cloud template deliberately leaves the signing secret empty so
 a copied template cannot start with a publicly known placeholder signing key.
+
+## PostgreSQL TLS diagnostic boundary
+
+See postgres-tls.md. Remote connections enforce verify-full, hostname SNI and TLS
+instead of GSS encryption. Invalid CA files fail before connecting. A rate-bounded
+TLS-only diagnostic can inspect the same failed numeric peer without sending any
+PostgreSQL startup/authentication data; its success never bypasses libpq failure.
+Only fixed codes and non-sensitive package/source enums reach the UI. Raw driver
+logs are suppressed per transaction thread, including under DEBUG. No certificate
+is fetched and trusted automatically, and no fallback endpoint is guessed.

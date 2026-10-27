@@ -193,7 +193,7 @@ def test_private_exports_do_not_create_unauthenticated_media_routes(monkeypatch)
     from quantmesh.exports import download
     monkeypatch.setenv("QUANTMESH_AUTH_MODE", "multi-user")
     rendered = []
-    monkeypatch.setattr("quantmesh.exports.components.html", lambda body, **_: rendered.append(body))
+    monkeypatch.setattr("quantmesh.exports.st.iframe", lambda body, **_: rendered.append(body))
     download(nullcontext(), "Download <private>", b"private,test", "report.csv", "text/csv")
     assert len(rendered) == 1 and "/media/" not in rendered[0]
     assert "data:text/csv;base64," in rendered[0]

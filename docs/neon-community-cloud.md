@@ -28,7 +28,7 @@ untrusted applications or expose the runtime credential to browser code.
 Connections are short-lived, with no process-global pool or credential-bearing
 cached connection. Non-loopback connections enforce certificate **and hostname**
 verification (`sslmode=verify-full`, system CA roots). Keep Neon channel binding in
-the copied URL. Connect timeout is 10s; transaction statement/lock/idle timeouts are
+the copied URL. Connect timeout is 30s; transaction statement/lock/idle timeouts are
 10s/5s/15s. A failure rolls back and returns a fixed sanitized error. There is no
 automatic write retry, anonymous mode, SQLite fallback or sample substitution for
 a database outage. Retry a failed operation after recovery. If a commit response
@@ -158,16 +158,19 @@ export and restore use the private owner connection instead. Re-run reviewed gra
 after future schema upgrades. Use a dedicated fresh role; this command adds grants
 and is not a scrubber for arbitrary pre-existing privileges.
 
-In Neon's Connect dialog enable **connection pooling**. Select `quantmesh_app`
-if it is listed. If the SQL-created role is absent from the selector, edit a
-**private copy** of the pooled connection URL: retain the `-pooler` host, database
-and TLS query parameters, and replace the username/password with `quantmesh_app`
-and its own password. URL-encode special characters in credentials locally; never
-use an online password/URL encoder. A long random alphanumeric password avoids
-URI-escaping ambiguity. The secrets template shows the URL shape. Do not copy
-the owner password into Cloud settings. Keep the direct owner URL for operator
-work. Transaction-scoped advisory locks are compatible with pooling; no
-session-level locks or server-side prepared statements are required.
+The current deployment owner reports that the **direct Neon endpoint works** and
+that the pooled endpoint timed out. Keep the functioning direct endpoint; this
+release does not edit Secrets or switch endpoints. Select `quantmesh_app` in
+Neon's Connect dialog if listed and use its **direct** URL for the current setup.
+If the SQL-created role is absent, edit a private copy of the direct URL to use
+that role's username/password while retaining the exact host, database and TLS
+parameters. URL-encode special characters locally; never use an online credential
+encoder. A long random alphanumeric password avoids URI-escaping ambiguity.
+Never put the owner password in Cloud settings. Pooling remains supported, but
+use it only after explicitly verifying network reachability from the chosen host.
+No hostname is synthesized and no direct/pooler fallback happens automatically.
+Connection establishment has a bounded **30-second** timeout for Cloud cold starts;
+transaction statement/lock/idle timeouts remain 10s/5s/15s.
 
 ## 5. Configure Community Cloud without publishing yet
 
@@ -184,7 +187,7 @@ In **App settings → Secrets**, enter these root-level TOML settings privately:
 | `QUANTMESH_BACKEND` | `"postgres"` |
 | `QUANTMESH_DEPLOYMENT` | `"production"` |
 | `QUANTMESH_AUTH_MODE` | `"multi-user"` |
-| `QUANTMESH_DATABASE_URL` | Pooled URL for `quantmesh_app`, not the owner |
+| `QUANTMESH_DATABASE_URL` | Working direct URL for `quantmesh_app`, not the owner; pooling optional after host-network verification |
 | `QUANTMESH_SESSION_SECRET` | Stable cryptographically random 32+ character secret generated/stored in your password manager; rotate only intentionally |
 | `QUANTMESH_LLM_PROVIDER` | `"groq"` (optional) |
 | `QUANTMESH_LLM_MODEL` | `"openai/gpt-oss-20b"` (optional) |

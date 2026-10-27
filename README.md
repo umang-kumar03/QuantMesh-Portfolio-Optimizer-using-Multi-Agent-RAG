@@ -72,6 +72,9 @@ Groq troubleshooting and local verification: [deployment guide](docs/deployment.
 
 PostgreSQL Cloud startup errors: [TLS diagnostics](docs/postgres-tls.md).
 
+[End-to-end audit and evidence](docs/production-readiness-audit.md) covers calculation
+checks, source/provider boundaries, exports, authentication and deployment limits.
+
 ## Checks
 
 ```sh

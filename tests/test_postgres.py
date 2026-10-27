@@ -70,6 +70,10 @@ def test_two_users_auth_journal_exports_and_logout(pgdb):
     assert any("bob private" in item.label for item in app.expander)
     assert not any("alice private" in item.label for item in app.expander)
     assert not app.get("download_button")
+    frames = app.get("iframe")
+    assert len(frames) == 3
+    assert all(not item.proto.src and "data:" in item.proto.srcdoc
+               and "/media/" not in item.proto.srcdoc for item in frames)
     next(b for b in app.sidebar.button if b.label == "Sign out").click().run()
     assert not app.exception and not app.metric
     assert not any(pgdb.glob("*.sqlite3")) and not (pgdb / "never-users.json").exists()
@@ -267,7 +271,7 @@ def test_remote_database_tls_enforced(monkeypatch):
     monkeypatch.setenv("QUANTMESH_DATABASE_URL", "postgresql://user:test-only@db.example.org/db?sslmode=disable")
     settings = pg.connection_settings()
     assert settings["sslmode"] == "verify-full" and settings["sslrootcert"] == certifi.where()
-    assert settings["connect_timeout"] == "10"
+    assert settings["connect_timeout"] == "30"
 
 
 @pytest.mark.parametrize("value", ["", "invalid database url", "postgresql:///missing-host"])
@@ -436,3 +440,42 @@ def test_runtime_cli_refuses_unprotected_password_input(monkeypatch, capsys):
     with pytest.raises(SystemExit, match="No secrets were logged"):
         main()
     assert not capsys.readouterr().out
+
+
+def test_testuser1_fixture_full_cloud_journal_lifecycle(pgdb):
+    """The production username is exercised with a fresh test-only password/database."""
+    update_account(Path("unused"), "testuser1", record=password_record("isolated-fixture-password"))
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "cloud_app.py", default_timeout=30).run()
+    assert not app.exception and not app.metric
+    app.text_input[0].set_value("testuser1")
+    app.text_input[1].set_value("isolated-fixture-password")
+    app.button[0].click().run()
+    assert not app.exception and len(app.tabs) == 5 and len(app.metric) == 4
+    next(item for item in app.text_input if item.label == "Research name").set_value("Test user private snapshot")
+    app.button(key="save-research").click().run()
+    assert not app.exception
+    assert len(list_runs("unused", owner="testuser1")) == 1
+    assert not list_runs("unused", owner="bob")
+    fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "cloud_app.py", default_timeout=30).run()
+    assert not fresh.exception and not fresh.metric
+    fresh.text_input[0].set_value("testuser1")
+    fresh.text_input[1].set_value("isolated-fixture-password")
+    fresh.button[0].click().run()
+    assert any("Test user private snapshot" in item.label for item in fresh.expander)
+    next(button for button in fresh.sidebar.button if button.label == "Sign out").click().run()
+    assert not fresh.exception and not fresh.metric
+
+
+def test_cloud_missing_optional_ai_settings_keep_defaults_and_report_missing_key(pgdb, monkeypatch):
+    for key in ("QUANTMESH_LLM_PROVIDER", "QUANTMESH_LLM_MODEL", "QUANTMESH_LLM_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "cloud_app.py", default_timeout=30).run()
+    assert not app.exception
+    app.text_input[0].set_value("alice")
+    app.text_input[1].set_value("test-alice-long-password")
+    app.button[0].click().run()
+    next(item for item in app.checkbox if item.label.startswith("I agree")).check().run()
+    next(item for item in app.button if item.label == "Generate AI explanation").click().run()
+    assert not app.exception and len(app.metric) == 4
+    assert any("QUANTMESH_LLM_API_KEY is not configured" in item.value for item in app.error)
+    assert "QUANTMESH_LLM_PROVIDER" not in os.environ

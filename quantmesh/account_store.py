@@ -5,7 +5,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-from quantmesh.auth import load_users
+from quantmesh.auth import load_file_users
 
 
 @contextmanager
@@ -56,8 +56,12 @@ def replace_users(target: Path, users: dict):
 
 def update_account(target: Path, username: str, *, record=None, action="set"):
     import secrets
+    from quantmesh.backend import backend
+    if backend() == "postgres":
+        from quantmesh.postgres import update_account as update
+        return update(username, record=record, action=action)
     with account_lock(target):
-        users = load_users(str(target)) if target.exists() else {}
+        users = load_file_users(str(target)) if target.exists() else {}
         if action == "disable":
             if username not in users or len(users) <= 1:
                 raise ValueError("Cannot disable a missing or last account. Provision an alternative operator account first.")

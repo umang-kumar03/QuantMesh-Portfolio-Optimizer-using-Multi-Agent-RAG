@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 import sqlite3
 
@@ -66,7 +67,7 @@ def test_multi_user_login_logout_and_record_isolation(tmp_path, monkeypatch, use
     monkeypatch.setenv("QUANTMESH_DB", db)
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "cache.db"))
     save_run(db, "Bob confidential", {}, owner="bob")
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     assert not app.exception
     assert not app.metric
     app.text_input[0].set_value("alice")
@@ -85,7 +86,7 @@ def test_multi_user_login_logout_and_record_isolation(tmp_path, monkeypatch, use
 def test_missing_multi_user_secret_blocks_dashboard(monkeypatch):
     monkeypatch.setenv("QUANTMESH_AUTH_MODE", "multi-user")
     monkeypatch.delenv("QUANTMESH_SESSION_SECRET", raising=False)
-    app = AppTest.from_file("app.py").run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     assert not app.exception
     assert not app.metric
     assert any("SESSION_SECRET" in e.value for e in app.error)

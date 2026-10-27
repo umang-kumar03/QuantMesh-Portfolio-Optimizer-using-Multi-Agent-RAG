@@ -1,4 +1,5 @@
 """No network or API credentials: every Yahoo download is controlled."""
+from pathlib import Path
 from datetime import date
 import logging
 
@@ -169,7 +170,7 @@ def test_yahoo_ui_and_source_results_do_not_cross_labels(tmp_path, monkeypatch):
     monkeypatch.setenv("QUANTMESH_DB", str(tmp_path / "journal"))
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "cache"))
     monkeypatch.setattr("quantmesh.yahoo.download_history", lambda **_: frame())
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     assert app.sidebar.radio[0].options == ["Sample market", "Upload CSV", "Alpha Vantage", "Yahoo Finance"]
     app.sidebar.radio[0].set_value("Yahoo Finance").run()
     next(b for b in app.button if b.label == "Load market history").click().run()
@@ -203,7 +204,7 @@ def test_yahoo_ui_fallback_report_is_never_labeled_real(tmp_path, monkeypatch):
     monkeypatch.setenv("QUANTMESH_DB", str(tmp_path / "journal"))
     monkeypatch.setenv("QUANTMESH_CACHE_DB", str(tmp_path / "cache"))
     monkeypatch.setattr("quantmesh.yahoo.download_history", lambda **_: pd.DataFrame())
-    app = AppTest.from_file("app.py", default_timeout=30).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
     app.sidebar.radio[0].set_value("Yahoo Finance").run()
     next(b for b in app.button if b.label == "Load market history").click().run()
     assert not app.exception and len(app.metric) == 4

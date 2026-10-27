@@ -5,6 +5,7 @@ services:
     ports:
       - '127.0.0.1:8501:8501'
     environment:
+      QUANTMESH_BACKEND: sqlite
       QUANTMESH_DEPLOYMENT: production
       QUANTMESH_STORAGE_MODE: persistent-local
       QUANTMESH_DATA_DIR: /data

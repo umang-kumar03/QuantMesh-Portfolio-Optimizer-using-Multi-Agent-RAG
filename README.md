@@ -21,11 +21,14 @@ See [production deployment](docs/production-deployment.md) and the
 [auth audit](docs/auth-audit.md) before sharing an instance. Render configuration
 is provided for one paid instance with a persistent disk; no resources are created.
 Production startup is `python -m quantmesh.serve`, never public single-user mode.
-See [free-hosting compatibility](docs/free-hosting.md): ephemeral free hosts cannot
-persist the existing accounts, revocations and research. Production requires explicit
-`QUANTMESH_STORAGE_MODE=persistent-local` on a genuinely durable local disk; the
-provided Compose and paid Render configurations set it. No reliable entirely free
-managed deployment has been verified.
+For a free-tier multi-user demo, see the complete
+[Community Cloud + Neon guide](docs/neon-community-cloud.md). Explicit
+`QUANTMESH_BACKEND=postgres` persists accounts, revocation, journals, caches and
+all request budgets remotely; database failures deny access. SQLite remains the
+default for existing local/Docker/Render deployments. Its production launcher
+requires `QUANTMESH_STORAGE_MODE=persistent-local` on a genuinely durable local disk.
+Free ephemeral hosts must use the complete PostgreSQL mode, never ephemeral SQLite.
+Neither free tier guarantees 24/7 uptime; no public deployment has been performed.
 The prepared Groq deployment model is `openai/gpt-oss-20b`.
 
 ## Features
@@ -42,6 +45,8 @@ The prepared Groq deployment model is `openai/gpt-oss-20b`.
   validation, and clear separation from authoritative numerical analytics.
 - CSV/JSON export and an owner-scoped SQLite research journal.
 - Provisioned scrypt accounts, expiring/revocable sessions and persistent login throttling.
+- Explicit SQLite/JSON or PostgreSQL persistence; restricted runtime database role,
+  transactional migrations, full-state SQLite import and consistent private recovery exports.
 
 CSV: `Date,Asset A,Asset B,...`, ascending unique daily dates, 2–30 assets,
 61–10,000 observations, positive finite adjusted prices, no missing values.
@@ -53,9 +58,11 @@ Use consistent currencies and verify corporate-action adjustments.
 |---|---|
 | Adjusted daily historical prices | `ALPHAVANTAGE_API_KEY` with `TIME_SERIES_DAILY_ADJUSTED`/full-history plan entitlement (normally premium) |
 | Generated explanation | `QUANTMESH_LLM_API_KEY`, `QUANTMESH_LLM_PROVIDER=openai` or `groq`, optional `QUANTMESH_LLM_MODEL` |
-| Private multi-user access | `QUANTMESH_AUTH_MODE=multi-user`, protected `QUANTMESH_USERS_FILE`, raw random `QUANTMESH_SESSION_SECRET` (32+ characters) |
+| SQLite multi-user access | `QUANTMESH_AUTH_MODE=multi-user`, protected `QUANTMESH_USERS_FILE`, raw random `QUANTMESH_SESSION_SECRET` (32+ characters) |
+| PostgreSQL multi-user access | `QUANTMESH_BACKEND=postgres`, `QUANTMESH_AUTH_MODE=multi-user`, private `QUANTMESH_DATABASE_URL`, stable `QUANTMESH_SESSION_SECRET`; [schema/runtime-role setup](docs/neon-community-cloud.md) |
 
 Provision accounts using `python -m quantmesh.manage_users USER --file /absolute/private/users.json`.
+In PostgreSQL mode, omit `--file` and use the protected operator database connection.
 Passwords are securely prompted, never supplied as command arguments. Never commit
 credentials; `.env.example` documents names only. The app does not load `.env`
 automatically. Provider requests need allowed outbound HTTPS destinations and
@@ -71,7 +78,9 @@ ruff check .
 python -m pip check
 ```
 
-CI tests Python 3.11/3.12 and audits pinned dependencies. See
+CI tests Python 3.11/3.12 against real PostgreSQL 17 and audits pinned dependencies.
+Without `QUANTMESH_TEST_DATABASE_URL`, local PostgreSQL integration cases are skipped;
+use a disposable database named `*_test` (the fixture resets its schema). See
 [actual validation results](docs/validation.md); live paid API success is not
 claimed when credentials or network access are unavailable.
 

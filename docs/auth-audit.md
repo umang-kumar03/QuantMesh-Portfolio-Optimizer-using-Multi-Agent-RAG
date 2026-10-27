@@ -42,3 +42,15 @@ backup/restore. Existing Yahoo, Groq and analytics tests remain in the full suit
 See validation.md and the PR for actual results. HTTPS and hosting/disk persistence
 must be verified only after the owner approves a deployment. No paid resources or
 public service were created. Review the operational limits in production-deployment.md.
+
+## PostgreSQL follow-up
+
+The same password/token/owner semantics now dispatch through explicit backend
+selection. PostgreSQL persists account records (including revocation nonce), journals,
+login/provider reservations and bounded history caches; no local security state is
+used. Serialized transactions prevent lost provisioning and concurrent budget
+oversubscription. Runtime-role grants exclude account mutation and DDL. Schema
+updates, administrative account actions and verified empty-target recovery are
+operator-only. See neon-community-cloud.md and validation.md for exact checks and
+operational boundaries. No formal penetration/cryptographic audit, MFA, SSO or
+instant remote erasure of browser views is claimed.

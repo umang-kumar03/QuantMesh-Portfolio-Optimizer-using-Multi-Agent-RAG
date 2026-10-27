@@ -156,3 +156,24 @@ bounded recovery, truncation, timeouts and Streamlit error/recovery presentation
   there), refuses existing roles and aborts if terminal input cannot be hidden.
   Re-run full suite: **157 passed**, including special-character password quoting,
   real restricted-role login/grants, SCRAM storage and secure-input failure checks.
+
+
+## Production TLS follow-up (2026-10-27)
+
+- Baseline reproduced a stale test expecting system roots while main selected
+  Certifi. Corrected the expectation and tested blank, native-system and custom
+  trust sources, invalid files and attempts to weaken TLS/SNI/GSS settings.
+- **201 tests passed, zero skipped**, Python 3.12.14, with real PostgreSQL 17 and
+  generated loopback TLS endpoints. Includes real psycopg-binary 3.3.6/libpq 18
+  wildcard/SNI acceptance, hostname mismatch rejection before authentication,
+  untrusted-issuer diagnosis, direct TLS/ALPN, no-auth probes, per-thread log
+  redaction, mixed connection-attempt classification and fail-closed Cloud UI.
+  Existing login/isolation/revocation/persistence and finance/provider mocks passed.
+- Ruff, pip check and git diff --check passed. Fresh pinned-dependency audit:
+  62 packages, no known advisories. Certifi is now a direct pinned dependency;
+  driver/package versions were not blindly upgraded or downgraded.
+- The supplied Streamlit URL returned a workspace proxy HTTP 403 on access,
+  including an escalated retry. No production database binding was available.
+  **No live login page, actual production certificate chain/hostname, or successful
+  deployment recovery was verified.** postgres-tls.md records this boundary and
+  the precise sanitized diagnostics available after release to main.

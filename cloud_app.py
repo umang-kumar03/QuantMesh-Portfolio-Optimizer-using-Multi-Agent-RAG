@@ -17,6 +17,9 @@ try:
 except ServiceError as exc:
     # ServiceError messages are deliberately sanitized and contain no connection credentials.
     st.error(f"Secure startup failed: {exc}")
+    if exc.code and exc.code.startswith("TLS_"):
+        from quantmesh.postgres_tls import runtime_summary
+        st.caption(runtime_summary())
     st.stop()
 except FileNotFoundError:
     st.error("Secure database configuration is unavailable. Access denied; contact the operator.")

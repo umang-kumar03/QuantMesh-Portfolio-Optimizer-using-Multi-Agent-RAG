@@ -4,6 +4,7 @@ import os
 import secrets
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from ipaddress import ip_address
 
 import psycopg
 from psycopg import sql
@@ -11,6 +12,7 @@ from psycopg.conninfo import conninfo_to_dict
 
 from quantmesh.backend import PersistenceError, CACHE_TABLES
 from quantmesh.http import ServiceError
+from quantmesh.postgres_tls import ca_bundle, classify, diagnose, failure, private_driver_logs
 
 SCHEMA_VERSION = 1
 MIGRATION_LOCK = 75240413001
@@ -29,20 +31,28 @@ def connection_settings():
         host = settings.get("host", "")
         if not value or not host or "," in host or host.startswith("/"):
             raise ValueError
-        # Local integration tests can use an unencrypted loopback server only.
-        if host not in {"localhost", "127.0.0.1", "::1"}:
-            # Allow an explicit trusted CA bundle while enforcing verified TLS.
-            settings.update(sslmode="verify-full", sslrootcert=os.environ.get("QUANTMESH_SSLROOTCERT") if os.environ.get("QUANTMESH_SSLROOTCERT") not in (None, "", "system") else __import__("certifi").where())
+        # Local integration tests can use a true loopback server only. A remote
+        # hostaddr must not bypass verification by labelling its host localhost.
+        loopback = host in {"localhost", "127.0.0.1", "::1"}
+        if settings.get("hostaddr"):
+            loopback = loopback and ip_address(settings["hostaddr"]).is_loopback
+        if not loopback:
+            # Never rely on bundled libpq's platform-specific default CA search path.
+            # Force SNI so Neon routes and presents the certificate for the configured host.
+            settings.update(sslmode="verify-full", sslrootcert=ca_bundle(), sslsni="1", gssencmode="disable")
         settings.update(connect_timeout="10", application_name="quantmesh")
         return settings
+    except PersistenceError:
+        raise
     except (psycopg.Error, ValueError):
         raise PersistenceError("PostgreSQL configuration is unavailable or invalid. Access denied.") from None
 
 
 @contextmanager
 def transaction(*, check_schema=True, snapshot=False):
+    settings = connection_settings()
     try:
-        with psycopg.connect(**connection_settings()) as conn:
+        with private_driver_logs(), psycopg.connect(**settings) as conn:
             if snapshot:
                 conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             conn.execute("SET LOCAL search_path = pg_catalog")
@@ -55,32 +65,10 @@ def transaction(*, check_schema=True, snapshot=False):
                     raise PersistenceError("PostgreSQL schema is incompatible. Run the reviewed migrations.")
             yield conn
     except psycopg.Error as exc:
-        # Show only allowlisted failure categories, never raw driver messages,
-        # DSNs, credentials, SQL parameters or provider payloads.
-        state = exc.sqlstate
-        if state == "42501":
-            category = "database role permissions"
-        elif state in {"42P01", "3F000"}:
-            category = "database schema or migration"
-        elif state in {"28P01", "28000"}:
-            category = "database authentication"
-        elif state == "3D000":
-            category = "database name"
-        elif isinstance(exc, psycopg.OperationalError):
-            detail = str(exc).lower()
-            if any(word in detail for word in ("certificate", "ssl", "tls", "root ca")):
-                category = "TLS certificate verification"
-            elif any(word in detail for word in ("password authentication", "authentication failed")):
-                category = "database authentication"
-            elif any(word in detail for word in ("timeout", "timed out")):
-                category = "network timeout"
-            elif any(word in detail for word in ("could not translate host", "name or service not known")):
-                category = "database hostname resolution"
-            else:
-                category = "database connectivity"
-        else:
-            category = "database operation"
-        raise PersistenceError(f"PostgreSQL startup check failed ({category}). Contact the operator.") from None
+        code = classify(exc)
+        if code == "TLS_VERIFY_FAILED" and settings.get("sslmode") == "verify-full":
+            code = diagnose(settings, exc)
+        raise failure(code) from None
 
 
 def migrate():

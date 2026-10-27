@@ -32,7 +32,7 @@ def connection_settings():
         # Local integration tests can use an unencrypted loopback server only.
         if host not in {"localhost", "127.0.0.1", "::1"}:
             # Allow an explicit trusted CA bundle while enforcing verified TLS.
-            settings.update(sslmode="verify-full", sslrootcert=os.environ.get("QUANTMESH_SSLROOTCERT") or "system")
+            settings.update(sslmode="verify-full", sslrootcert=os.environ.get("QUANTMESH_SSLROOTCERT") if os.environ.get("QUANTMESH_SSLROOTCERT") not in (None, "", "system") else __import__("certifi").where())
         settings.update(connect_timeout="10", application_name="quantmesh")
         return settings
     except (psycopg.Error, ValueError):

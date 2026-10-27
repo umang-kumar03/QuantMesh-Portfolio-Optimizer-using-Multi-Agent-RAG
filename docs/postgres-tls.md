@@ -1,5 +1,11 @@
 # PostgreSQL TLS startup diagnosis
 
+Update 2026-10-27: the owner reports that the direct Neon endpoint works and the
+pooled endpoint returned NETWORK_TIMEOUT. Preserve the working direct connection.
+The runtime connection timeout is now 30 seconds. This workspace still cannot
+independently reach the public app; the earlier incident findings below describe
+the prior diagnostic work, not a new claim that the current app is failing.
+
 TLS and hostname verification remain mandatory. There is no `sslmode=require`,
 `verify-ca`, trust-all context, alternate-host retry, or SQLite/anonymous fallback.
 An optional diagnostic handshake cannot authorize login or bypass a failed libpq

@@ -177,3 +177,17 @@ bounded recovery, truncation, timeouts and Streamlit error/recovery presentation
   **No live login page, actual production certificate chain/hostname, or successful
   deployment recovery was verified.** postgres-tls.md records this boundary and
   the precise sanitized diagnostics available after release to main.
+
+
+## End-to-end audit follow-up (2026-10-27)
+
+See [production-readiness-audit.md](production-readiness-audit.md) for the complete
+feature table, discovered bugs and evidence boundaries. Final local suite:
+**236 passed, 0 failed, 0 skipped** with real disposable PostgreSQL 17. Ruff,
+pip check and diff checks passed; 62 pinned packages audited without known advisories.
+Independent finance calculations, all five AppTest tabs/chart payloads/controls,
+CSV upload paths, reports, isolated testuser1 and multi-user persistence are covered.
+Actual local PostgreSQL restart and restricted-role/Cloud-entrypoint smoke checks
+passed. Public Cloud access was denied by the workspace proxy; real Yahoo returned
+no history and Groq/Alpha keys were unavailable. No production state was modified,
+and live/browser/paid-provider verification is not claimed.

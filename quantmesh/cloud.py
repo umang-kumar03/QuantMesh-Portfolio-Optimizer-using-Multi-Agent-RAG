@@ -18,5 +18,8 @@ def configure(settings):
             or candidate["QUANTMESH_AUTH_MODE"] != "multi-user"
             or not all(isinstance(value, str) for value in candidate.values())):
         raise ServiceError("Community Cloud requires postgres, production and multi-user settings. Access denied.")
-    os.environ.update(candidate)
+    # Absence must stay absent: injecting empty optional provider/model values
+    # masks the application's documented defaults on every Streamlit rerun.
+    os.environ.update({key: value for key, value in candidate.items()
+                       if key in settings or key in os.environ})
     preflight()

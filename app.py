@@ -86,9 +86,12 @@ try:
             st.info("Upload daily adjusted prices to begin, or select Sample market.")
             st.stop()
         prices = read_csv(uploaded.getvalue())
+        provenance = {"provider": "uploaded CSV", "synthetic": None,
+                      "adjustment": "User-supplied; not independently verified"}
         st.info("Imported prices: verify adjustment for dividends, splits, and currency consistency.")
     else:
         prices = sample_prices()
+        provenance = {"provider": "synthetic", "synthetic": True, "sample_seed": 42}
         st.info("SAMPLE DATA · Reproducible synthetic prices, not actual market history.")
     params = dict(objective=objective, train_fraction=training / 100, max_weight=cap / 100,
                   risk_free=rf / 100, cost_bps=costs)
@@ -182,7 +185,8 @@ with evidence:
 with data:
     st.subheader("Price history")
     st.dataframe(prices, width="stretch")
-    actual_source = "Synthetic sample fallback" if provenance.get("synthetic") else source
+    actual_source = ("Synthetic sample fallback" if source in {"Alpha Vantage", "Yahoo Finance"}
+                     and provenance.get("synthetic") else source)
     report = build_report(prices, result, actual_source, {**params, "initial_capital": capital})
     report["market_provenance"] = provenance
     a, b, c = st.columns(3)
@@ -196,16 +200,21 @@ with data:
 with saved:
     st.subheader("Private research journal")
     st.caption("Research is scoped to your signed-in account. Uploaded raw prices are not saved.")
-    name = st.text_input("Research name", "Portfolio experiment")
+    name = st.text_input("Research name", "Portfolio experiment", max_chars=100)
     db = os.environ.get("QUANTMESH_DB", ".quantmesh/research.sqlite3")
     try:
         if st.button("Save research snapshot", type="primary", key="save-research"):
-            save_run(db, name, report, owner=owner)
-            st.success("Research snapshot saved.")
+            if not name.strip():
+                st.error("Research name must contain 1 to 100 characters.")
+            else:
+                save_run(db, name, report, owner=owner)
+                st.success("Research snapshot saved.")
         for run in list_runs(db, owner=owner):
             with st.expander(f"#{run['id']} · {run['name']} · {run['created'][:19]} UTC"):
                 st.json(run["payload"])
-    except (ServiceError, OSError, ValueError, sqlite3.Error):
+    except ServiceError as exc:
+        st.error(str(exc))
+    except (OSError, ValueError, sqlite3.Error):
         st.error("Research journal is unavailable. Check storage permissions and retry; "
                  "contact the operator if the problem persists.")
 st.divider()

@@ -4,7 +4,7 @@ import html
 import os
 import re
 
-import streamlit.components.v1 as components
+import streamlit as st
 
 
 def download(target, label: str, data: bytes | str, filename: str, mime: str):
@@ -16,9 +16,9 @@ def download(target, label: str, data: bytes | str, filename: str, mime: str):
     encoded = base64.b64encode(raw).decode("ascii")
     # Only constant CSS, escaped labels and base64 data enter srcdoc. No external script or URL.
     with target:
-        components.html(
+        st.iframe(
             '<style>a{display:inline-block;color:#e4eaf6;background:#151d32;padding:10px;'
             'border:1px solid #41dbc0;border-radius:6px;font:14px sans-serif;text-decoration:none}</style>'
             f'<a download="{html.escape(filename, quote=True)}" '
             f'href="data:{mime};base64,{encoded}">{html.escape(label)}</a>',
-            height=55, scrolling=False)
+            height=55)

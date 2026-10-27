@@ -4,7 +4,7 @@ Scope: the current main implementation plus this review branch. The owner report
 that the live direct Neon endpoint, testuser1 login, dashboard, metrics and charts
 work, while the pooled endpoint timed out. This audit preserves that direct
 endpoint and the intended 30-second connection timeout. No production credentials,
-accounts, passwords, research, or Secrets were read or modified. No migration,
+accounts, passwords, research, or Secrets were read or modified. At local-validation time, no migration,
 merge, public deployment, paid service or external account was performed.
 
 ## Results and evidence boundaries
@@ -104,14 +104,16 @@ TLS/network/billing policies, and off-platform backup operations remain unverifi
 
 ## Release and remaining setup
 
-Review the PR and its CI results before applying it to main. No automatic merge or
-public deployment is authorized by this audit. The current working production
+The uploaded task permits merging after required checks pass when repository
+permission is available. Merge only a green checked commit, without bypassing
+branch-protection or required reviews. This audit does not authorize separate
+public provisioning or production data changes. The current working production
 Secrets and direct endpoint should remain as configured; no key/Secret change is
 needed for these fixes. Optional provider use still requires the documented Groq/
 OpenAI key and Alpha adjusted-data entitlement. No credentials should be posted
 in issues, comments, logs or chat.
 
-After an owner-approved merge, verify the live login page, five tabs, a small
+After an authorized merge, verify the live login page, five tabs, a small
 owner-scoped saved snapshot and private exports using authorized accounts, plus
 browser responsiveness. Do not restart/reset production data to repeat the local
 fixture tests. Follow deployment/security documentation for backups, quotas,

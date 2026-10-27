@@ -40,7 +40,7 @@ def connection_settings():
             # Never rely on bundled libpq's platform-specific default CA search path.
             # Force SNI so Neon routes and presents the certificate for the configured host.
             settings.update(sslmode="verify-full", sslrootcert=ca_bundle(), sslsni="1", gssencmode="disable")
-        settings.update(connect_timeout="10", application_name="quantmesh")
+        settings.update(connect_timeout="30", application_name="quantmesh")
         return settings
     except PersistenceError:
         raise

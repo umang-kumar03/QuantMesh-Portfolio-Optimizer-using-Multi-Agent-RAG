@@ -57,9 +57,19 @@ def reserve_request(path: str, service: str, per_minute: int, per_day: int,
 def parse_history(payload: dict, symbol: str) -> pd.Series:
     if not isinstance(payload, dict):
         raise ServiceError("Provider returned an unexpected history format.")
+    # Alpha Vantage returns a structured notice rather than price rows when an
+    # API key lacks premium access. Never render the raw provider body or token.
+    notice = " ".join(str(payload.get(key, ""))[:2000].lower()
+                      for key in ("Information", "Note", "Error Message"))
+    if "premium" in notice or "subscribe" in notice or "subscription" in notice:
+        raise ServiceError("Alpha Vantage daily adjusted prices require premium API access. "
+                           "For a free real-data alternative, select Yahoo Finance.")
+    if "rate limit" in notice or "api call frequency" in notice or "calls per minute" in notice:
+        raise ServiceError("Alpha Vantage request limit reached. Retry later or select Yahoo Finance.")
     rows = payload.get("Time Series (Daily)")
     if not isinstance(rows, dict) or not rows:
-        raise ServiceError("No adjusted history returned. Check symbol, API key and adjusted-data plan entitlement.")
+        raise ServiceError("No Alpha Vantage adjusted history returned. Check symbol, API access "
+                           "and plan entitlement; Yahoo Finance is a free-data alternative.")
     metadata = payload.get("Meta Data", {})
     if (not isinstance(metadata, dict) or not isinstance(metadata.get("2. Symbol"), str)
             or metadata["2. Symbol"].upper() != symbol):

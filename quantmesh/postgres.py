@@ -54,9 +54,33 @@ def transaction(*, check_schema=True, snapshot=False):
                 if row != (SCHEMA_VERSION,):
                     raise PersistenceError("PostgreSQL schema is incompatible. Run the reviewed migrations.")
             yield conn
-    except psycopg.Error:
-        # Never expose DSNs, SQL parameters, provider payloads or libpq exception text.
-        raise PersistenceError("PostgreSQL is unavailable or incompatible. Access denied; retry later or contact the operator.") from None
+    except psycopg.Error as exc:
+        # Show only allowlisted failure categories, never raw driver messages,
+        # DSNs, credentials, SQL parameters or provider payloads.
+        state = exc.sqlstate
+        if state == "42501":
+            category = "database role permissions"
+        elif state in {"42P01", "3F000"}:
+            category = "database schema or migration"
+        elif state in {"28P01", "28000"}:
+            category = "database authentication"
+        elif state == "3D000":
+            category = "database name"
+        elif isinstance(exc, psycopg.OperationalError):
+            detail = str(exc).lower()
+            if any(word in detail for word in ("certificate", "ssl", "tls", "root ca")):
+                category = "TLS certificate verification"
+            elif any(word in detail for word in ("password authentication", "authentication failed")):
+                category = "database authentication"
+            elif any(word in detail for word in ("timeout", "timed out")):
+                category = "network timeout"
+            elif any(word in detail for word in ("could not translate host", "name or service not known")):
+                category = "database hostname resolution"
+            else:
+                category = "database connectivity"
+        else:
+            category = "database operation"
+        raise PersistenceError(f"PostgreSQL startup check failed ({category}). Contact the operator.") from None
 
 
 def migrate():

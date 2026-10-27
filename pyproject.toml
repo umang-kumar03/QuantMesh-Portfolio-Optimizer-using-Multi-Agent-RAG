@@ -7,7 +7,7 @@ name = "quantmesh"
 version = "0.2.0"
 description = "Reproducible portfolio research with evidence-grounded analysis"
 requires-python = ">=3.11"
-dependencies = ["numpy==2.2.6", "pandas==2.2.3", "scipy==1.15.3", "plotly==6.1.2", "streamlit==1.66.1", "pillow==13.0.0", "requests==2.34.2", "yfinance==1.7.0", "psycopg[binary]==3.3.6", "certifi==2026.10.19"]
+dependencies = ["numpy==2.2.6", "pandas==2.2.3", "scipy==1.15.3", "plotly==6.1.2", "streamlit==1.66.1", "pillow==13.0.0", "requests==2.34.2", "yfinance==1.7.0", "psycopg[binary]==3.3.6", "certifi==2026.10.23"]
 
 [project.optional-dependencies]
 dev = ["pytest==9.0.3", "ruff==0.11.11"]

@@ -14,7 +14,11 @@ try:
         settings = {}  # Explicit process settings are supported for private local checks.
     with st.spinner("Connecting to secure research storage…"):
         configure(settings)
-except (ServiceError, FileNotFoundError):
+except ServiceError as exc:
+    # ServiceError messages are deliberately sanitized and contain no connection credentials.
+    st.error(f"Secure startup failed: {exc}")
+    st.stop()
+except FileNotFoundError:
     st.error("Secure database configuration is unavailable. Access denied; contact the operator.")
     st.stop()
 

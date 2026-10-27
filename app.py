@@ -38,7 +38,8 @@ with st.sidebar:
     uploaded = st.file_uploader("Daily adjusted closing prices", type=["csv"]) if source == "Upload CSV" else None
     if source in {"Alpha Vantage", "Yahoo Finance"}:
         st.caption("Historical end-of-day adjusted prices, not real-time quotes.")
-        st.caption("Alpha Vantage adjusted history needs plan entitlement." if source == "Alpha Vantage"
+        st.caption("Alpha Vantage adjusted history is premium. For free historical adjusted prices, "
+                   "select Yahoo Finance instead; raw unadjusted closes are not substituted." if source == "Alpha Vantage"
                    else "Yahoo Finance via yfinance · Unofficial access; no API key required.")
         with st.form("market-request-" + source):
             symbols_text = st.text_input("Symbols (2–5, comma-separated)", "SPY,QQQ,GLD")

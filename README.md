@@ -1,100 +1,101 @@
-# ◈ QuantMesh
+# ◈ QuantMesh — Portfolio Optimizer with Multi-Agent Research
 
-**Portfolio research with transparent analytics, optional market history and grounded AI explanations.**
+**Build a portfolio, test it on unseen historical data, understand its risks, and export reproducible research.**
 
-The existing portfolio dashboard now supports cached Alpha Vantage and Yahoo Finance adjusted daily
-history, optional OpenAI/Groq research explanations, and private multi-user accounts.
-It still runs immediately with deterministic synthetic data and no service keys.
+[**Live Streamlit demo**](https://quantmesh-portfolio-optimizer-using-multi-agent-rag-7ujd3x7e8m.streamlit.app/) · [Architecture](docs/architecture.md) · [Guided demo](docs/demo-guide.md) · [Validation](docs/production-readiness-audit.md) · [Security](docs/security.md)
 
-## Run locally
+> **Demo access:** The public URL opens a **sign-in-gated** research workspace. Accounts are provisioned privately by the operator; there are no public default credentials or public sign-up. The app does not place trades or offer investment advice.
 
-```sh
+## What it does
+
+| Capability | Implementation |
+|---|---|
+| **Portfolio optimization** | Constrained **minimum variance** and **maximum Sharpe** allocation; long-only, fully invested weights with configurable caps |
+| **Out-of-sample evaluation** | Chronological training/holdout split, buy-and-hold comparison against equal weight, initial trading costs |
+| **Risk dashboard** | Total return, CAGR, volatility, Sharpe ratio, max drawdown, daily historical VaR, correlation heatmap and drawdown curves |
+| **Four price sources** | Reproducible synthetic samples, validated CSV uploads, Yahoo Finance adjusted daily history, Alpha Vantage adjusted history (premium entitlement) |
+| **Multi-agent review** | Deterministic allocation, risk, validation and evidence-synthesis agents with cited local methodology |
+| **Optional AI explanations** | Consent-gated OpenAI/Groq generation, allowlisted source IDs and exact-quote validation; AI interpretations remain explicitly unverified |
+| **Research exports** | CSV prices/weights, structured JSON reports and owner-scoped saved research |
+| **Protected access** | Provisioned multi-user accounts, scrypt password hashes, revocable one-hour sessions, request limits and Neon PostgreSQL storage |
+
+### Live demo walkthrough
+
+1. Sign in using an **operator-provisioned** account. (The login gate is intentional.)
+2. Select **Sample market** to evaluate the same reproducible, explicitly synthetic data without using provider keys.
+3. Compare **Minimum variance** and **Maximum Sharpe**; inspect performance, target weights, correlations and drawdowns.
+4. Under **Research agents**, examine methodology citations. The optional AI button sends only a consented question, summary metrics and selected methodology to the configured provider.
+5. Under **Data & export**, download CSV/JSON results; under **Saved research**, save and reopen a snapshot within your own account.
+6. For external data, choose **Yahoo Finance** or upload a CSV. Alpha Vantage's adjusted daily endpoint requires compatible premium access and is **not** silently replaced with unadjusted closes.
+
+See the [guided demo and screenshot/privacy notes](docs/demo-guide.md) for exact controls and expected states.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Signed-in researcher"] --> B["Streamlit UI + authentication"]
+    B --> C["CSV / sample / Yahoo / Alpha Vantage"]
+    C --> D["Validation + provenance"]
+    D --> E["Training-only optimizer"]
+    E --> F["Chronological holdout + risk metrics"]
+    F --> G["Plots, reports, private exports"]
+    F --> H["Allocation / risk / validation / evidence agents"]
+    H --> I["Opt-in Groq or OpenAI + citation checks"]
+    I --> G
+    B --> J[("Neon PostgreSQL: accounts, budgets, cache, research")]
+    G --> J
+```
+
+**Stack:** Python 3.11/3.12 · pandas · NumPy · SciPy (SLSQP) · Plotly · Streamlit · psycopg/PostgreSQL · SQLite for local mode · optional Groq/OpenAI · yfinance · pytest/Ruff/GitHub Actions.
+
+The optimizer uses training observations to estimate returns and covariance; holdout observations are used to **evaluate**, not fit, the selected weights. Portfolio weights are long-only, capped and sum to one. Annualization uses 252 trading observations, and the benchmark is an equal-weight buy-and-hold portfolio with comparable initial costs. Maximum-Sharpe optimization is a numerical local solution, not a promise of higher future returns.
+
+## Quick start (private local demo)
+
+```bash
 python -m venv .venv
-. .venv/bin/activate
+# Linux/macOS:
+source .venv/bin/activate
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+
 python -m pip install -c constraints.txt -e '.[dev]'
 streamlit run app.py --server.address=127.0.0.1
 ```
 
-Default mode is private single-user. Do not expose that mode publicly. Prepared
-Docker Compose configuration requires provisioned multi-user authentication.
-See [production deployment](docs/production-deployment.md) and the
-[auth audit](docs/auth-audit.md) before sharing an instance. Render configuration
-is provided for one paid instance with a persistent disk; no resources are created.
-Production startup is `python -m quantmesh.serve`, never public single-user mode.
-For a free-tier multi-user demo, see the complete
-[Community Cloud + Neon guide](docs/neon-community-cloud.md). Explicit
-`QUANTMESH_BACKEND=postgres` persists accounts, revocation, journals, caches and
-all request budgets remotely; database failures deny access. SQLite remains the
-default for existing local/Docker/Render deployments. Its production launcher
-requires `QUANTMESH_STORAGE_MODE=persistent-local` on a genuinely durable local disk.
-Free ephemeral hosts must use the complete PostgreSQL mode, never ephemeral SQLite.
-Neither free tier guarantees 24/7 uptime; no public deployment has been performed.
-The prepared Groq deployment model is `openai/gpt-oss-20b`.
+Private single-user mode with synthetic data works **without API keys**. Do not expose local single-user mode publicly. Valid CSV layout: `Date,Asset A,Asset B,...`, ascending unique dates, 2–30 assets, 61–10,000 daily rows, finite positive prices without missing values. Users must verify dividend/split adjustment and currency consistency before interpreting their own uploads.
 
-## Features
+For **public multi-user** deployment use `cloud_app.py`, `QUANTMESH_BACKEND=postgres`, private app-role database credentials and the [Neon + Community Cloud guide](docs/neon-community-cloud.md). Never upload a real `.env`, `.streamlit/secrets.toml`, account records, keys or database URL. The tested Cloud setup uses a **direct Neon endpoint**; pooling is optional only after separate reachability testing. Free tiers may sleep and do not guarantee uptime.
 
-- Four separate sources: Sample market, Upload CSV, Alpha Vantage and Yahoo Finance.
-- Yahoo Finance via pinned yfinance needs no API key; explicitly adjusted prices,
-  strict missing-data validation, cached histories and clearly labeled fallback.
-- Persistent historical cache, request budgets, freshness/provenance, bounded stale
-  reuse, and clearly labeled sample fallback on service failure.
-- Minimum-variance / maximum-Sharpe optimization with weight caps and training-only estimates.
-- Chronological buy-and-hold holdout versus equal weight, explicit costs, risk and return charts.
-- Deterministic specialist agents and cited local methodology retrieval.
-- Optional AI explanation: explicit consent, supplied-fact citations, exact-quote
-  validation, and clear separation from authoritative numerical analytics.
-- CSV/JSON export and an owner-scoped SQLite research journal.
-- Provisioned scrypt accounts, expiring/revocable sessions and persistent login throttling.
-- Explicit SQLite/JSON or PostgreSQL persistence; restricted runtime database role,
-  transactional migrations, full-state SQLite import and consistent private recovery exports.
+## Data sources and limitations
 
-CSV: `Date,Asset A,Asset B,...`, ascending unique daily dates, 2–30 assets,
-61–10,000 observations, positive finite adjusted prices, no missing values.
-Use consistent currencies and verify corporate-action adjustments.
+- **Yahoo Finance:** Historical adjusted prices via the unofficial `yfinance` adapter; no user API key. Source freshness and provenance are displayed. Provider availability and licensing terms apply.
+- **Alpha Vantage:** `TIME_SERIES_DAILY_ADJUSTED` requires an entitled API plan. Free keys may be rejected. The UI explains the limitation and points to Yahoo; it **never relabels unadjusted closing prices as adjusted**.
+- **Sample market:** Synthetic, reproducible and prominently labeled. It is not market history, even when a provider fallback substitutes sample data.
+- **CSV upload:** Validated historical prices provided by the user; the app cannot independently certify corporate-action adjustment.
+- **AI research:** The source corpus contains local methodological passages, **not live financial news**. Exact citation/quote validation does not prove that the model's interpretation is true.
 
-## Optional credentials
+There is no execution engine, tax model, liquidity model, guaranteed maximum-Sharpe optimum, managed off-site backup, public account registration or formal security certification.
 
-| Capability | Configuration |
-|---|---|
-| Adjusted daily historical prices | `ALPHAVANTAGE_API_KEY` with `TIME_SERIES_DAILY_ADJUSTED`/full-history plan entitlement (normally premium) |
-| Generated explanation | `QUANTMESH_LLM_API_KEY`, `QUANTMESH_LLM_PROVIDER=openai` or `groq`, optional `QUANTMESH_LLM_MODEL` |
-| SQLite multi-user access | `QUANTMESH_AUTH_MODE=multi-user`, protected `QUANTMESH_USERS_FILE`, raw random `QUANTMESH_SESSION_SECRET` (32+ characters) |
-| PostgreSQL multi-user access | `QUANTMESH_BACKEND=postgres`, `QUANTMESH_AUTH_MODE=multi-user`, private `QUANTMESH_DATABASE_URL`, stable `QUANTMESH_SESSION_SECRET`; [schema/runtime-role setup](docs/neon-community-cloud.md) |
+## Testing and release evidence
 
-Provision accounts using `python -m quantmesh.manage_users USER --file /absolute/private/users.json`.
-In PostgreSQL mode, omit `--file` and use the protected operator database connection.
-Passwords are securely prompted, never supplied as command arguments. Never commit
-credentials; `.env.example` documents names only. The app does not load `.env`
-automatically. Provider requests need allowed outbound HTTPS destinations and
-account/model permissions. No API key is required for sample/CSV deterministic research.
-
-Groq troubleshooting and local verification: [deployment guide](docs/deployment.md#verify-groq-explanations-locally).
-
-PostgreSQL Cloud startup errors: [TLS diagnostics](docs/postgres-tls.md).
-
-[End-to-end audit and evidence](docs/production-readiness-audit.md) covers calculation
-checks, source/provider boundaries, exports, authentication and deployment limits.
-
-## Checks
-
-```sh
+```bash
 pytest -q
 ruff check .
 python -m pip check
 ```
 
-CI tests Python 3.11/3.12 against real PostgreSQL 17 and audits pinned dependencies.
-Without `QUANTMESH_TEST_DATABASE_URL`, local PostgreSQL integration cases are skipped;
-use a disposable database named `*_test` (the fixture resets its schema). See
-[actual validation results](docs/validation.md); live paid API success is not
-claimed when credentials or network access are unavailable.
+[CI](https://github.com/umang-kumar03/QuantMesh-Portfolio-Optimizer-using-Multi-Agent-RAG/actions) runs Python 3.11/3.12 with a disposable PostgreSQL 17 database, plus a pinned-dependency audit. An earlier full production-readiness review recorded **236 passing tests**; later Alpha Vantage guidance added regression tests. Check the latest green workflow for current results. Some provider tests use **mocked** HTTP responses rather than paid or production credentials.
+
+**Manually checked on October 27, 2026** (owner-led browser walkthrough): authenticated sign-in/out, minimum-variance and maximum-Sharpe UI, risk charts, consented Groq explanation, CSV/JSON downloads, saved research across refresh/re-login, CSV upload and **non-synthetic Yahoo Finance** history. This is a functional smoke test—not an uptime, performance or penetration-test guarantee. Alpha Vantage premium adjusted-price access remained unavailable; its error handling was checked.
+
+For evidence boundaries and operator checks see [production-readiness audit](docs/production-readiness-audit.md) and [public-demo security checklist](docs/public-demo-security-checklist.md).
 
 ## Documentation
 
-[Architecture](docs/architecture.md) · [Requirements](docs/requirements.md) ·
-[Historical data sources](docs/data-sources.md) · [Research and attribution](docs/research.md) · [Roadmap](docs/roadmap.md) ·
-[Deployment](docs/deployment.md) · [Security](docs/security.md)
+[Architecture](docs/architecture.md) · [Research and attribution](docs/research.md) ·
+[Data sources](docs/data-sources.md) · [Deployment](docs/deployment.md) ·
+[Neon Community Cloud setup](docs/neon-community-cloud.md) ·
+[Security](docs/security.md) · [Roadmap](docs/roadmap.md)
 
-No trade execution or public deployment. Historical results do not predict future
-returns. AI explanations may be wrong even when their quoted evidence matches;
-local methodology sources are not live financial news or investment recommendations.
+**Disclaimer:** Research and educational software only. Historical backtests, optimized allocations and AI explanations are not investment advice or predictions.
